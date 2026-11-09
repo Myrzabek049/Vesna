@@ -1,0 +1,14 @@
+{
+  "name": "Vesna — видеоредактор",
+  "short_name": "Vesna",
+  "description": "Бесплатный видеоредактор в браузере без подписок и водяных знаков",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d1110",
+  "theme_color": "#101413",
+  "lang": "ru",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

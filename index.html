@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101413">
+  <meta name="description" content="Vesna — бесплатный видеоредактор в браузере. Без подписок, без водяных знаков.">
+  <title>Vesna — видеоредактор</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Верхняя панель -->
+    <header class="topbar">
+      <div class="brand">
+        <img src="icons/icon.svg" alt="" width="26" height="26">
+        <span>Vesna</span>
+      </div>
+      <div class="topbar-center">
+        <input id="projectName" class="project-name" value="Мой проект" aria-label="Название проекта">
+      </div>
+      <div class="topbar-actions">
+        <button class="btn ghost" id="btnUndo" title="Отменить (Ctrl+Z)">↶</button>
+        <button class="btn ghost" id="btnRedo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+        <select id="aspectSelect" class="select" title="Формат кадра">
+          <option value="16:9">16:9</option>
+          <option value="9:16">9:16</option>
+          <option value="1:1">1:1</option>
+          <option value="4:5">4:5</option>
+          <option value="4:3">4:3</option>
+          <option value="21:9">21:9</option>
+        </select>
+        <button class="btn ghost" id="btnNew" title="Новый проект">Новый</button>
+        <button class="btn primary" id="btnExport">Экспорт</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <!-- Левая панель: ресурсы -->
+      <aside class="panel left-panel">
+        <nav class="tabs" id="leftTabs">
+          <button class="tab active" data-tab="media">Медиа</button>
+          <button class="tab" data-tab="text">Текст</button>
+          <button class="tab" data-tab="stickers">Стикеры</button>
+          <button class="tab" data-tab="filters">Фильтры</button>
+          <button class="tab" data-tab="effects">Эффекты</button>
+        </nav>
+
+        <section class="tab-body active" data-body="media">
+          <label class="dropzone" id="dropzone">
+            <input type="file" id="fileInput" multiple accept="video/*,image/*,audio/*" hidden>
+            <strong>+ Импорт</strong>
+            <span>Видео, фото и аудио.<br>Можно перетащить файлы сюда.</span>
+          </label>
+          <div class="media-grid" id="mediaGrid"></div>
+          <p class="hint" id="mediaEmpty">Файлы обрабатываются только на вашем устройстве и никуда не загружаются.</p>
+        </section>
+
+        <section class="tab-body" data-body="text">
+          <div class="preset-list" id="textPresets"></div>
+        </section>
+
+        <section class="tab-body" data-body="stickers">
+          <div class="sticker-grid" id="stickerGrid"></div>
+        </section>
+
+        <section class="tab-body" data-body="filters">
+          <p class="hint">Выберите клип на таймлайне, затем фильтр.</p>
+          <div class="filter-grid" id="filterGrid"></div>
+        </section>
+
+        <section class="tab-body" data-body="effects">
+          <p class="hint">Анимация появления и исчезновения для выбранного клипа.</p>
+          <h4 class="sub">Появление</h4>
+          <div class="chip-row" id="animInGrid"></div>
+          <h4 class="sub">Исчезновение</h4>
+          <div class="chip-row" id="animOutGrid"></div>
+        </section>
+      </aside>
+
+      <!-- Превью -->
+      <section class="preview-wrap">
+        <div class="preview-stage" id="previewStage">
+          <canvas id="preview" width="1920" height="1080"></canvas>
+        </div>
+        <div class="transport">
+          <span class="timecode" id="timeCurrent">00:00.00</span>
+          <div class="transport-buttons">
+            <button class="btn icon" id="btnToStart" title="В начало (Home)">⏮</button>
+            <button class="btn icon" id="btnPrevFrame" title="Кадр назад (←)">◀︎</button>
+            <button class="btn icon play" id="btnPlay" title="Воспроизведение (Пробел)">▶</button>
+            <button class="btn icon" id="btnNextFrame" title="Кадр вперёд (→)">▶︎</button>
+            <button class="btn icon" id="btnToEnd" title="В конец (End)">⏭</button>
+          </div>
+          <span class="timecode muted" id="timeTotal">00:00.00</span>
+        </div>
+      </section>
+
+      <!-- Правая панель: свойства -->
+      <aside class="panel right-panel">
+        <div class="inspector" id="inspector">
+          <div class="inspector-empty">
+            <p>Выберите клип на таймлайне, чтобы изменить его свойства.</p>
+            <p class="hint">Пробел — пуск/пауза · S — разрезать · Del — удалить · Ctrl+D — дублировать</p>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Таймлайн -->
+    <section class="timeline-wrap">
+      <div class="timeline-toolbar">
+        <button class="btn ghost sm" id="btnSplit" title="Разрезать по плейхеду (S)">✂ Разрезать</button>
+        <button class="btn ghost sm" id="btnDuplicate" title="Дублировать (Ctrl+D)">⧉ Дублировать</button>
+        <button class="btn ghost sm" id="btnDelete" title="Удалить (Del)">🗑 Удалить</button>
+        <button class="btn ghost sm" id="btnAddTrack" title="Добавить дорожку оверлея">+ Дорожка</button>
+        <label class="toggle sm" title="Примагничивание к краям клипов">
+          <input type="checkbox" id="snapToggle" checked> Магнит
+        </label>
+        <div class="spacer"></div>
+        <span class="zoom-label">Масштаб</span>
+        <input type="range" id="zoomRange" min="10" max="400" value="80">
+      </div>
+      <div class="timeline" id="timeline">
+        <div class="track-heads" id="trackHeads"></div>
+        <div class="track-scroll" id="trackScroll">
+          <div class="track-content" id="trackContent">
+            <div class="ruler" id="ruler"></div>
+            <div class="tracks" id="tracks"></div>
+            <div class="playhead" id="playhead"><div class="playhead-knob"></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Диалог экспорта -->
+  <dialog id="exportDialog" class="dialog">
+    <form method="dialog" class="dialog-body" id="exportForm">
+      <h3>Экспорт видео</h3>
+      <p class="hint">Без водяных знаков и ограничений. Видео рендерится в реальном времени — не сворачивайте вкладку.</p>
+      <label class="field">
+        <span>Разрешение</span>
+        <select id="exportRes" class="select">
+          <option value="480">480p</option>
+          <option value="720">720p</option>
+          <option value="1080" selected>1080p</option>
+          <option value="1440">2K (1440p)</option>
+          <option value="2160">4K (2160p)</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Частота кадров</span>
+        <select id="exportFps" class="select">
+          <option value="24">24 к/с</option>
+          <option value="25">25 к/с</option>
+          <option value="30" selected>30 к/с</option>
+          <option value="50">50 к/с</option>
+          <option value="60">60 к/с</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Качество</span>
+        <select id="exportQuality" class="select">
+          <option value="0.5">Экономное</option>
+          <option value="1" selected>Высокое</option>
+          <option value="2">Максимальное</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Формат</span>
+        <select id="exportFormat" class="select"></select>
+      </label>
+      <div class="progress" id="exportProgress" hidden>
+        <div class="progress-bar"><div id="exportBar"></div></div>
+        <span id="exportStatus">0%</span>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" class="btn ghost" id="exportCancel">Отмена</button>
+        <button type="button" class="btn primary" id="exportStart">Экспортировать</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/util.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/presets.js"></script>
+  <script src="js/project.js"></script>
+  <script src="js/media.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/timeline.js"></script>
+  <script src="js/inspector.js"></script>
+  <script src="js/exporter.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
