@@ -166,13 +166,23 @@ V.help = (() => {
   const isHelpUI = (t) => t.closest('.help-bar, .help-bubble, .help-btn');
 
   /* Перехват нажатий в режиме подсказок */
+  const isControl = (t) => !!t.closest('input, select, textarea');
   const intercept = (e) => {
     if (!H.on || isHelpUI(e.target)) return;
-    e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
-    if (e.type !== 'click') return;
-    const tip = find(e.target);
+    // На сенсорных экранах preventDefault у touchstart отменяет «click», поэтому
+    // касания обрабатываем отдельно: обычные элементы — через click, поля ввода — по touchend.
+    if (e.type === 'touchstart') { if (isControl(e.target)) e.preventDefault(); return; }
+    if (e.type === 'touchend') {
+      if (isControl(e.target)) { e.preventDefault(); explain(e.target); }
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    if (e.type === 'click') explain(e.target);
+  };
+  const explain = (target) => {
+    const tip = find(target);
     if (tip) show(tip);
     else {
       hideBubble();
@@ -191,7 +201,7 @@ V.help = (() => {
 
   H.init = () => {
     build();
-    ['pointerdown', 'mousedown', 'touchstart', 'click', 'dblclick', 'dragstart', 'wheel', 'change', 'input'].forEach(ev =>
+    ['pointerdown', 'mousedown', 'touchstart', 'touchend', 'click', 'dblclick', 'dragstart', 'wheel', 'change', 'input'].forEach(ev =>
       window.addEventListener(ev, intercept, { capture: true, passive: false }));
     document.querySelectorAll('.help-btn').forEach(b => b.addEventListener('click', () => H.toggle()));
     document.addEventListener('keydown', (e) => {
