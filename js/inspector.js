@@ -276,6 +276,7 @@ V.inspector = (() => {
     root.innerHTML = '';
     if (!c) {
       root.append(V.el('div', { class: 'inspector-empty' },
+        V.mascot.create(P().allClips().length ? 'wink' : 'wow', 96),
         V.el('p', {}, 'Выберите клип на таймлайне, чтобы изменить его свойства.'),
         V.el('p', { class: 'hint' }, 'Пробел — пуск/пауза · S — разрезать · Del — удалить · Ctrl+D — дублировать · Ctrl+Z — отменить'),
         V.el('h5', { class: 'sub' }, 'Фон проекта'),

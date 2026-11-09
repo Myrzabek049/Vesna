@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <div class="splash" id="splash"><div id="splashMascot"></div><p>Vesna просыпается…</p></div>
   <div id="app">
     <!-- Верхняя панель -->
     <header class="topbar">
@@ -55,7 +56,11 @@
             <span>Видео, фото и аудио.<br>Можно перетащить файлы сюда.</span>
           </label>
           <div class="media-grid" id="mediaGrid"></div>
-          <p class="hint" id="mediaEmpty">Файлы обрабатываются только на вашем устройстве и никуда не загружаются.</p>
+          <div class="mascot-empty" id="mediaEmpty">
+            <div id="mediaMascot"></div>
+            <p><b>Привет! Я Весна-бот.</b><br>Добавь видео, фото или музыку, и начнём монтировать.</p>
+            <p class="hint">Файлы обрабатываются только на твоём устройстве и никуда не загружаются.</p>
+          </div>
         </section>
 
         <section class="tab-body" data-body="text">
@@ -139,7 +144,7 @@
   <!-- Диалог экспорта -->
   <dialog id="exportDialog" class="dialog">
     <form method="dialog" class="dialog-body" id="exportForm">
-      <h3>Экспорт видео</h3>
+      <div class="export-head"><div id="exportMascot"></div><h3>Экспорт видео</h3></div>
       <p class="hint">Без водяных знаков и ограничений. Видео рендерится в реальном времени — не сворачивайте вкладку.</p>
       <label class="field">
         <span>Разрешение</span>
@@ -187,6 +192,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="js/util.js"></script>
+  <script src="js/mascot.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/presets.js"></script>
   <script src="js/project.js"></script>

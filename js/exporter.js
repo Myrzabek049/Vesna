@@ -37,6 +37,8 @@ V.exporter = (() => {
     }
     progress.hidden = true;
     btnStart.disabled = false;
+    if (!X.mascot) { X.mascot = V.mascot.create('wink', 64, { float: false }); document.getElementById('exportMascot').append(X.mascot); }
+    V.mascot.set(X.mascot, 'wink');
     btnCancel.textContent = 'Отмена';
     dlg.showModal();
   };
@@ -94,6 +96,7 @@ V.exporter = (() => {
       rec = new MediaRecorder(stream, { mimeType: fmt.mime, videoBitsPerSecond: bitrate, audioBitsPerSecond: 192000 });
     } catch (e) {
       finish();
+      V.mascot.set(X.mascot, 'sad');
       return V.toast('Не удалось начать запись: ' + e.message, 5000);
     }
     X.recorder = rec;
@@ -102,6 +105,8 @@ V.exporter = (() => {
 
     progress.hidden = false;
     btnStart.disabled = true;
+    V.mascot.set(X.mascot, 'focus');
+    V.mascot.progress(X.mascot, 0);
     bar.style.width = '0%';
     status.textContent = 'Подготовка…';
 
@@ -115,6 +120,7 @@ V.exporter = (() => {
       if (!E.exporting) return;
       const p = V.clamp(E.time / D, 0, 1);
       bar.style.width = (p * 100).toFixed(1) + '%';
+      V.mascot.progress(X.mascot, p);
       status.textContent = `${Math.round(p * 100)}% · ${V.fmtTime(E.time, false)} / ${V.fmtTime(D, false)}`;
     };
     X.onTime = onTime;
@@ -128,6 +134,7 @@ V.exporter = (() => {
     finish();
 
     if (X.cancelled) {
+      V.mascot.set(X.mascot, 'sad');
       status.textContent = 'Отменено';
       dlg.close();
       return;
@@ -138,7 +145,7 @@ V.exporter = (() => {
     if (window.VesnaAndroid) {
       status.textContent = 'Сохранение в галерею…';
       where = await saveAndroid(blob, name);
-      if (!where) { btnStart.disabled = false; status.textContent = 'Не удалось сохранить файл'; return V.toast('Ошибка сохранения', 4000); }
+      if (!where) { V.mascot.set(X.mascot, 'sad'); btnStart.disabled = false; status.textContent = 'Не удалось сохранить файл'; return V.toast('Ошибка сохранения', 4000); }
     } else {
       const url = URL.createObjectURL(blob);
       const a = V.el('a', { href: url, download: name });
@@ -148,6 +155,7 @@ V.exporter = (() => {
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     }
     bar.style.width = '100%';
+    V.mascot.set(X.mascot, 'happy');
     status.textContent = `Готово: ${where} (${(blob.size / 1048576).toFixed(1)} МБ)`;
     btnStart.disabled = false;
     btnCancel.textContent = 'Закрыть';

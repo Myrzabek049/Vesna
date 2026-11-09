@@ -1,0 +1,28 @@
+<svg viewBox="0 0 200 232" width="400" height="464" role="img" aria-label="Маскот Vesna" data-mood="wink" xmlns="http://www.w3.org/2000/svg"><style>.vm-face path,.vm-face circle{fill:none;stroke:#fff;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}.vm-face .vm-dot{fill:#fff;stroke:none}.vm-face .vm-tear{fill:#7ec8ff;stroke:none}.vm-face .vm-track{fill:#2a2f2d;stroke:none}.vm-face .vm-bar{fill:#7ee08a;stroke:none}</style><g class="">
+    <g class="vm-body" stroke="#141716" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M40 232 C40 196 62 178 100 176 C138 178 160 196 160 232" fill="#fff"></path>
+      <path d="M80 180 C88 190 112 190 120 180" fill="none"></path>
+      <path d="M89 140 L89 182 L111 182 L111 140" fill="#fff"></path>
+      <path d="M111 152 L111 180" stroke="#c9ccd6" stroke-width="5"></path>
+    </g>
+    <g class="vm-hair" stroke="#141716" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <path fill="#fff" d="M100 26 C134 26 158 46 162 80 C164 104 162 124 170 150
+        L157 141 L160 158 L147 145 L145 160 L135 147 L132 158 L124 148 L112 152
+        L88 152 L76 148 L68 158 L65 147 L55 160 L53 145 L40 158 L43 141 L30 150
+        C38 124 36 104 38 80 C42 46 66 26 100 26 Z"></path>
+      <path fill="#dcdfe8" stroke="none" d="M150 70 C158 96 156 126 166 146 L156 138 C150 118 152 96 146 78 Z"></path>
+      <path fill="#fff" d="M40 104 L14 124 L44 114 Z"></path>
+      <path fill="#fff" d="M160 108 L188 134 L158 120 Z"></path>
+      <path fill="none" d="M100 28 L98 52"></path>
+      <path fill="none" d="M128 36 L148 58" stroke-width="4"></path>
+      <path fill="none" d="M72 40 C64 50 60 60 58 70" stroke-width="2"></path>
+      <path fill="none" d="M92 22 C98 16 108 16 114 22" stroke-width="2.5"></path>
+    </g>
+      <g class="vm-head">
+        <rect x="52" y="58" width="96" height="94" rx="7" fill="#101211" stroke="#141716" stroke-width="2" transform="rotate(-5 100 105)"></rect>
+        <rect x="56" y="62" width="88" height="14" rx="5" fill="#fff" opacity=".06" transform="rotate(-5 100 105)"></rect>
+        <g class="vm-face" transform="rotate(-5 100 105)">
+      <path d="M70 94 L85 101 L70 108"></path>
+      <circle cx="119" cy="99" r="10"></circle>
+      <path d="M84 125 L113 121"></path></g>
+      </g></g></svg>

@@ -5,6 +5,18 @@
   const $ = (id) => document.getElementById(id);
   const P = V.project, E = V.engine;
 
+  /* ---------- Заставка с маскотом ---------- */
+  const splashM = V.mascot.create('focus', 140);
+  $('splashMascot').append(splashM);
+  let sp = 0;
+  const spT = setInterval(() => V.mascot.progress(splashM, sp = Math.min(0.95, sp + 0.15)), 120);
+  const hideSplash = () => {
+    clearInterval(spT);
+    V.mascot.progress(splashM, 1);
+    V.mascot.set(splashM, 'happy');
+    setTimeout(() => { $('splash').classList.add('hide'); setTimeout(() => $('splash').remove(), 400); }, 350);
+  };
+
   /* ---------- Восстановление ---------- */
   const saved = await V.storage.getKV('project');
   P.init(saved ? JSON.parse(saved) : null);
@@ -40,9 +52,9 @@
   $('fileInput').addEventListener('change', (e) => { V.media.importFiles(e.target.files); e.target.value = ''; });
   const dz = $('dropzone');
   ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, (e) => {
-    if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); dz.classList.add('over'); }
+    if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); dz.classList.add('over'); V.mascot.set($('mediaMascot').firstChild, 'wow'); }
   }));
-  ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, () => dz.classList.remove('over')));
+  ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, () => { dz.classList.remove('over'); V.mascot.set($('mediaMascot').firstChild, 'wink'); }));
   document.addEventListener('drop', (e) => {
     if (e.dataTransfer?.files?.length) { e.preventDefault(); V.media.importFiles(e.dataTransfer.files); }
   });
@@ -287,6 +299,7 @@
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
+  hideSplash();
   E.seek(Math.min(E.time, E.duration()));
   V.timeline.render();
   V.media.render();

@@ -170,6 +170,8 @@ V.media = (() => {
     const grid = document.getElementById('mediaGrid');
     grid.innerHTML = '';
     document.getElementById('mediaEmpty').hidden = M.items.size > 0;
+    const mm = document.getElementById('mediaMascot');
+    if (!mm.firstChild) mm.append(V.mascot.create('wink', 120));
     for (const it of M.items.values()) {
       const used = V.project.allClips().some(c => c.mediaId === it.id);
       const card = V.el('div', { class: 'media-card' + (used ? ' used' : ''), draggable: 'true', 'data-id': it.id, title: it.name },
