@@ -76,7 +76,7 @@ V.mascot = (() => {
   document.head.append(style);
 
   /* Создать маскота. size — ширина в пикселях. */
-  const create = (mood = 'wink', size = 120, { float = true, title = 'Маскот Vesna' } = {}) => {
+  const create = (mood = 'wink', size = 120, { float = true, title = 'Киви, маскот Vesna' } = {}) => {
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('viewBox', '0 0 200 232');
     svg.setAttribute('width', size);

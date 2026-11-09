@@ -280,6 +280,7 @@
   }
 
   /* ---------- Хаб проектов ---------- */
+  V.help.init();
   await V.hub.init();
   await V.hub.show();
   hideSplash();

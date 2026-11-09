@@ -328,6 +328,32 @@ body.hub-open #app { visibility: hidden; }
   .hub-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
 }
 
+/* ---------- Режим подсказок ---------- */
+.help-btn { width: 32px; height: 32px; padding: 0; border-radius: 50%; font-weight: 800; font-size: 15px; border: 1.5px solid var(--line-2) !important; color: var(--accent); }
+.help-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) !important; }
+.hub-top .help-btn { margin-left: auto; }
+.export-head .help-btn { margin-left: auto; }
+body.help-mode, body.help-mode * { cursor: help !important; }
+body.help-mode .help-bar *, body.help-mode .help-bubble * , body.help-mode .help-btn { cursor: pointer !important; }
+.help-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(14px, env(safe-area-inset-bottom)); z-index: 300;
+  display: flex; align-items: center; gap: 10px; width: max-content; max-width: calc(100vw - 24px);
+  padding: 7px 8px 7px 14px; border-radius: 999px; background: var(--accent); color: var(--accent-ink); font-weight: 600; font-size: 12.5px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.45); }
+body.help-sheet .help-bar { display: none; }
+.help-bar .btn { background: var(--accent-ink); color: var(--accent); border: 0; }
+.help-lit { outline: 2.5px solid var(--accent) !important; outline-offset: 2px; border-radius: 6px; box-shadow: 0 0 0 6px rgba(126,224,138,.25) !important; position: relative; z-index: 5; }
+.help-bubble { position: fixed; z-index: 310; width: 340px; display: flex; gap: 10px; align-items: flex-start; padding: 14px 14px 12px 10px;
+  background: #f4f8f5; color: #0d1110; border-radius: 16px; box-shadow: 0 14px 40px rgba(0,0,0,.55); animation: hb-in .18s ease-out; }
+dialog .help-bubble { position: absolute; }
+.help-bubble.sheet { left: 10px !important; right: 10px; bottom: max(12px, env(safe-area-inset-bottom)); top: auto !important; width: auto; position: fixed; }
+.hb-m { flex-shrink: 0; margin-top: -2px; }
+.hb-body { flex: 1; min-width: 0; }
+.hb-who { font-size: 11px; color: #4b7a55; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; }
+.hb-title { display: block; font-size: 15px; margin: 2px 0 4px; }
+.hb-text { margin: 0 0 10px; font-size: 13px; line-height: 1.45; color: #26302d; }
+.hb-ok { float: right; }
+@keyframes hb-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
 /* ---------- Маскот ---------- */
 .splash { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: var(--bg); color: var(--muted); transition: opacity .35s; }
 .splash.hide { opacity: 0; pointer-events: none; }
