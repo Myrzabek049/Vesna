@@ -41,7 +41,26 @@ V.exporter = (() => {
     dlg.showModal();
   };
 
+  /* Android-приложение: передаём файл частями через мост в Movies/Vesna */
+  const saveAndroid = async (blob, name) => {
+    const A = window.VesnaAndroid;
+    if (!A.begin(name, blob.type)) return '';
+    const CH = 3 * 256 * 1024;
+    for (let off = 0; off < blob.size; off += CH) {
+      const b64 = await new Promise((res, rej) => {
+        const r = new FileReader();
+        r.onload = () => res(String(r.result).split(',')[1] || '');
+        r.onerror = rej;
+        r.readAsDataURL(blob.slice(off, off + CH));
+      });
+      if (!A.append(b64)) return '';
+      status.textContent = `Сохранение… ${Math.round(Math.min(1, (off + CH) / blob.size) * 100)}%`;
+    }
+    return A.finish();
+  };
+
   const finish = () => {
+    if (window.VesnaAndroid) window.VesnaAndroid.keepAwake(false);
     V.engine.exporting = false;
     V.engine.onEnded = null;
     if (V.engine.monitor) V.engine.monitor.gain.value = 1;
@@ -59,6 +78,7 @@ V.exporter = (() => {
     E.pause();
     E.ensureAudio();
     E.exporting = true;
+    if (window.VesnaAndroid) window.VesnaAndroid.keepAwake(true);
     document.body.classList.add('exporting');
     E.setResolution(base);
     const { width: w, height: h } = E.canvas;
@@ -114,14 +134,21 @@ V.exporter = (() => {
     }
     const blob = new Blob(chunks, { type: fmt.mime.split(';')[0] });
     const name = (V.project.state.name || 'vesna').replace(/[\\/:*?"<>|]+/g, '_') + '.' + fmt.ext;
-    const url = URL.createObjectURL(blob);
-    const a = V.el('a', { href: url, download: name });
-    document.body.append(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    let where = name;
+    if (window.VesnaAndroid) {
+      status.textContent = 'Сохранение в галерею…';
+      where = await saveAndroid(blob, name);
+      if (!where) { btnStart.disabled = false; status.textContent = 'Не удалось сохранить файл'; return V.toast('Ошибка сохранения', 4000); }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = V.el('a', { href: url, download: name });
+      document.body.append(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
     bar.style.width = '100%';
-    status.textContent = `Готово: ${name} (${(blob.size / 1048576).toFixed(1)} МБ)`;
+    status.textContent = `Готово: ${where} (${(blob.size / 1048576).toFixed(1)} МБ)`;
     btnStart.disabled = false;
     btnCancel.textContent = 'Закрыть';
     V.toast('Видео сохранено ✓');

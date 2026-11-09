@@ -283,7 +283,7 @@
   }, { passive: false });
 
   /* ---------- PWA ---------- */
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http') && !window.VesnaAndroid) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
@@ -291,4 +291,14 @@
   V.timeline.render();
   V.media.render();
   window.addEventListener('beforeunload', () => V.storage.setKV('project', JSON.stringify(P.state)));
+
+  /* Хуки для Android-приложения */
+  window.VesnaSave = () => V.storage.setKV('project', JSON.stringify(P.state));
+  window.VesnaBack = () => {
+    const dlg = document.querySelector('dialog[open]');
+    if (dlg) { V.exporter.cancel(); return true; }
+    if (E.playing) { E.pause(); return true; }
+    if (P.selectedId) { P.select(null); return true; }
+    return false;
+  };
 })();
