@@ -1,9 +1,9 @@
 /* Vesna — офлайн-кэш приложения */
-const CACHE = 'vesna-v2';
+const CACHE = 'vesna-v3';
 const FILES = [
   './', 'index.html', 'css/style.css', 'manifest.webmanifest', 'icons/icon.svg',
   'js/util.js', 'js/mascot.js', 'js/storage.js', 'js/presets.js', 'js/project.js', 'js/media.js',
-  'js/engine.js', 'js/timeline.js', 'js/inspector.js', 'js/exporter.js', 'js/app.js',
+  'js/engine.js', 'js/timeline.js', 'js/inspector.js', 'js/exporter.js', 'js/hub.js', 'js/app.js',
 ];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

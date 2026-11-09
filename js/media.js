@@ -117,7 +117,7 @@ V.media = (() => {
       if (!type) { V.toast('Формат не поддерживается: ' + f.name); continue; }
       V.toast('Импорт: ' + f.name, 60000);
       try {
-        const rec = { id: V.uid('med'), name: f.name, type, blob: f, added: Date.now() };
+        const rec = { id: V.uid('med'), name: f.name, type, blob: f, added: Date.now(), projects: [V.project.state.id] };
         await build(rec);
         V.storage.putMedia(rec);
         ok++;
@@ -132,15 +132,17 @@ V.media = (() => {
 
   /* Добавить медиа из Blob (стоп-кадр, замена клипа) */
   M.addBlob = async (blob, name, type) => {
-    const rec = { id: V.uid('med'), name, type, blob, added: Date.now() };
+    const rec = { id: V.uid('med'), name, type, blob, added: Date.now(), projects: [V.project.state.id] };
     const item = await build(rec);
     V.storage.putMedia(rec);
     M.render();
     return item;
   };
 
-  M.restore = async () => {
-    const recs = await V.storage.allMedia();
+  /* Загрузить медиа одного проекта */
+  M.restore = async (projectId) => {
+    M.unload();
+    const recs = (await V.storage.allMedia()).filter(r => (r.projects || []).includes(projectId));
     recs.sort((a, b) => (a.added || 0) - (b.added || 0));
     for (const r of recs) {
       try { await build(r); } catch (e) { console.warn('restore failed', r.name, e); }
@@ -154,15 +156,22 @@ V.media = (() => {
     V.project.removeMedia(id);
     M.items.delete(id);
     URL.revokeObjectURL(it.url);
-    V.storage.deleteMedia(id);
+    M.detach(it, V.project.state.id);
     M.render();
   };
 
-  M.clear = () => {
+  /* Отвязать файл от проекта; если он больше нигде не нужен — удалить */
+  M.detach = (rec, projectId) => {
+    const projects = (rec.projects || []).filter(p => p !== projectId);
+    if (!projects.length) return V.storage.deleteMedia(rec.id);
+    const { url, el, thumb, wave, width, height, duration, ...raw } = rec;
+    return V.storage.putMedia({ ...raw, projects });
+  };
+
+  /* Выгрузить медиа текущего проекта из памяти */
+  M.unload = () => {
     M.items.forEach(it => URL.revokeObjectURL(it.url));
     M.items.clear();
-    V.storage.clearMedia();
-    M.render();
   };
 
   /* --- UI медиатеки --- */

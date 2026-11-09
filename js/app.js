@@ -17,17 +17,8 @@
     setTimeout(() => { $('splash').classList.add('hide'); setTimeout(() => $('splash').remove(), 400); }, 350);
   };
 
-  /* ---------- Восстановление ---------- */
-  const saved = await V.storage.getKV('project');
-  P.init(saved ? JSON.parse(saved) : null);
-  await V.media.restore();
-  // клипы, чьи файлы потерялись, удаляем
-  const missing = P.allClips().filter(c => c.mediaId && !V.media.get(c.mediaId));
-  if (missing.length) {
-    P.state.tracks.forEach(t => { t.clips = t.clips.filter(c => !c.mediaId || V.media.get(c.mediaId)); });
-    P.cleanupTracks();
-  }
-
+  /* ---------- Инициализация (проект открывается из хаба) ---------- */
+  P.init(null);
   E.init($('preview'));
   V.timeline.init();
   V.inspector.init();
@@ -37,7 +28,7 @@
   $('aspectSelect').value = P.state.aspect;
 
   /* ---------- Автосохранение ---------- */
-  const save = V.debounce(() => V.storage.setKV('project', JSON.stringify(P.state)), 400);
+  const save = V.debounce(() => V.hub.saveCurrent(), 400);
   V.bus.on('project', () => { save(); V.media.render(); });
 
   /* ---------- Вкладки левой панели ---------- */
@@ -124,17 +115,6 @@
   $('btnUndo').addEventListener('click', P.undo);
   $('btnRedo').addEventListener('click', P.redo);
   $('btnExport').addEventListener('click', V.exporter.open);
-  $('btnNew').addEventListener('click', () => {
-    if (!confirm('Начать новый проект? Текущий проект и импортированные файлы будут удалены с этого устройства.')) return;
-    E.pause();
-    V.media.clear();
-    P.init(null);
-    E.seek(0);
-    $('projectName').value = P.state.name;
-    $('aspectSelect').value = P.state.aspect;
-    E.setResolution(E.previewBase);
-    save();
-  });
   V.bus.on('project', () => {
     $('aspectSelect').value = P.state.aspect;
     $('projectName').value = P.state.name;
@@ -160,7 +140,7 @@
   document.addEventListener('keydown', (e) => {
     const tag = (e.target.tagName || '').toLowerCase();
     if (['input', 'textarea', 'select'].includes(tag) && e.target.type !== 'range') return;
-    if (document.querySelector('dialog[open]')) return;
+    if (document.querySelector('dialog[open]') || V.hub.visible()) return;
     const mod = e.ctrlKey || e.metaKey;
     const k = e.key.toLowerCase();
     if (e.code === 'Space') { e.preventDefault(); E.toggle(); }
@@ -299,19 +279,22 @@
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 
+  /* ---------- Хаб проектов ---------- */
+  await V.hub.init();
+  await V.hub.show();
   hideSplash();
-  E.seek(Math.min(E.time, E.duration()));
-  V.timeline.render();
-  V.media.render();
-  window.addEventListener('beforeunload', () => V.storage.setKV('project', JSON.stringify(P.state)));
+  window.addEventListener('beforeunload', () => V.hub.saveCurrent(true));
+  document.addEventListener('visibilitychange', () => { if (document.hidden) V.hub.saveCurrent(true); });
 
   /* Хуки для Android-приложения */
-  window.VesnaSave = () => V.storage.setKV('project', JSON.stringify(P.state));
+  window.VesnaSave = () => V.hub.saveCurrent(true);
   window.VesnaBack = () => {
+    if (V.hub.visible()) return false;            // из хаба — выход из приложения
     const dlg = document.querySelector('dialog[open]');
     if (dlg) { V.exporter.cancel(); return true; }
     if (E.playing) { E.pause(); return true; }
     if (P.selectedId) { P.select(null); return true; }
-    return false;
+    V.hub.show();                                  // из редактора — в список проектов
+    return true;
   };
 })();

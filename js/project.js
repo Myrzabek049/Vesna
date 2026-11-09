@@ -15,6 +15,8 @@ V.project = (() => {
   const newTrack = (kind) => ({ id: V.uid('trk'), kind, muted: false, hidden: false, clips: [] });
 
   P.blank = () => ({
+    id: V.uid('prj'),
+    created: Date.now(),
     name: 'Мой проект',
     aspect: '16:9',
     background: '#000000',

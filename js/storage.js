@@ -36,5 +36,6 @@ V.storage = (() => {
     clearMedia: () => safe(tx('media', 'readwrite', s => s.clear())),
     setKV: (k, v) => safe(tx('kv', 'readwrite', s => s.put(v, k))),
     getKV: (k) => safe(tx('kv', 'readonly', s => s.get(k))),
+    delKV: (k) => safe(tx('kv', 'readwrite', s => s.delete(k))),
   };
 })();

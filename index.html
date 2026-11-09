@@ -12,9 +12,29 @@
 </head>
 <body>
   <div class="splash" id="splash"><div id="splashMascot"></div><p>Vesna просыпается…</p></div>
+  <!-- Стартовый экран: мои проекты -->
+  <section class="hub" id="hub" hidden>
+    <header class="hub-top">
+      <div class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"><span>Vesna</span></div>
+    </header>
+    <div class="hub-hero">
+      <div id="hubMascot"></div>
+      <div class="hub-hello">
+        <h1>Что смонтируем сегодня?</h1>
+        <p>Все твои проекты сохраняются на этом устройстве.</p>
+        <button class="btn primary hub-new" id="hubNew">＋ Новый проект</button>
+        <div class="hub-formats" id="hubFormats" hidden></div>
+      </div>
+    </div>
+    <h2 class="hub-title">Мои проекты <span id="hubCount"></span></h2>
+    <div class="hub-grid" id="hubGrid"></div>
+    <p class="hub-empty" id="hubEmpty" hidden>Пока пусто. Нажми «Новый проект», чтобы начать.</p>
+  </section>
+
   <div id="app">
     <!-- Верхняя панель -->
     <header class="topbar">
+      <button class="btn ghost home-btn" id="btnHome" title="Мои проекты" aria-label="Мои проекты">←</button>
       <div class="brand">
         <img src="icons/icon.svg" alt="" width="26" height="26">
         <span>Vesna</span>
@@ -33,7 +53,6 @@
           <option value="4:3">4:3</option>
           <option value="21:9">21:9</option>
         </select>
-        <button class="btn ghost" id="btnNew" title="Новый проект">Новый</button>
         <button class="btn primary" id="btnExport">Экспорт</button>
       </div>
     </header>
@@ -201,6 +220,7 @@
   <script src="js/timeline.js"></script>
   <script src="js/inspector.js"></script>
   <script src="js/exporter.js"></script>
+  <script src="js/hub.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
