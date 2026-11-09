@@ -25,6 +25,10 @@ V.mascot = (() => {
       <path d="M109 99 L128 99"/>
       <rect class="vm-track" x="72" y="117" width="52" height="8" rx="4"/>
       <rect class="vm-bar" x="72" y="117" width="0" height="8" rx="4"/>`,
+    talk: `
+      <path d="M68 104 L77 94 L86 104"/>
+      <path d="M110 104 L119 94 L128 104"/>
+      <ellipse class="vm-mouth" cx="98" cy="123" rx="9" ry="6"/>`,
     sad: `
       <circle class="vm-dot" cx="78" cy="101" r="3.5"/>
       <circle class="vm-dot" cx="119" cy="101" r="3.5"/>
@@ -55,7 +59,7 @@ V.mascot = (() => {
 
   const css = `
     .vm{overflow:visible}
-    .vm-face path,.vm-face circle{fill:none;stroke:#fff;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
+    .vm-face path,.vm-face circle,.vm-face ellipse{fill:none;stroke:#fff;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round}
     .vm-face .vm-dot{fill:#fff;stroke:none}
     .vm-face .vm-tear{fill:#7ec8ff;stroke:none}
     .vm-face .vm-track{fill:#2a2f2d;stroke:none}

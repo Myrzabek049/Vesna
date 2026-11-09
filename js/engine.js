@@ -105,16 +105,43 @@ V.engine = (() => {
     V.bus.emit('time', E.time);
   };
 
+  /* ---------- Окна активности клипов (с учётом переходов) ---------- */
+  // Переход хранится у клипа основной дорожки: clip.trans = { type, dur } — вход из предыдущего клипа.
+  // На время перехода оба соседних клипа видны: предыдущий «доигрывает», следующий «заранее начинается».
+  const transOf = (c) => (c && c.trans && c.trans.type && c.trans.type !== 'none' ? c.trans : null);
+  const windowOf = (clip, track) => {
+    let a = clip.start, b = clip.start + clip.duration;
+    if (track && track.kind === 'main') {
+      const tr = transOf(clip);
+      if (tr) a -= tr.dur / 2;
+      const i = track.clips.indexOf(clip);
+      const nx = transOf(track.clips[i + 1]);
+      if (nx) b += nx.dur / 2;
+    }
+    return [a, b];
+  };
+  E.windowOf = windowOf;
+
+  /* Время в исходнике для локального времени клипа (может выходить за края при переходах) */
+  const srcTime = (clip, local) => {
+    const m = V.media.get(clip.mediaId);
+    const max = m && m.duration ? m.duration - 0.04 : Infinity;
+    return V.clamp(clip.in + local * clip.speed, 0, max);
+  };
+
   /* ---------- Синхронизация медиа с часами ---------- */
+  // tol — допустимое расхождение при паузе (при точном экспорте — полкадра)
+  E.seekTolerance = 0.02;
   const sync = () => {
     const t = E.time;
     let stalled = false;
     for (const track of V.project.state.tracks) {
       for (const clip of track.clips) {
         if (clip.type !== 'video' && clip.type !== 'audio') continue;
+        const [wa, wb] = windowOf(clip, track);
         const end = clip.start + clip.duration;
-        const active = t >= clip.start && t < end;
-        const soon = E.playing && !active && clip.start > t && clip.start - t < 1.2;
+        const active = t >= wa && t < wb;
+        const soon = E.playing && !active && wa > t && wa - t < 1.2;
         if (!active && !soon) {
           const ex = E.pool.get(clip.id);
           if (ex && !ex.el.paused) ex.el.pause();
@@ -123,24 +150,27 @@ V.engine = (() => {
         const entry = ensureEl(clip);
         if (!entry) continue;
         const el = entry.el;
-        const srcT = clip.in + Math.max(0, t - clip.start) * clip.speed;
-
-        // громкость и затухания
-        let vol = track.muted ? 0 : clip.volume / 100;
         const local = t - clip.start;
-        if (clip.fadeInAudio > 0 && local < clip.fadeInAudio) vol *= local / clip.fadeInAudio;
+        const srcT = srcTime(clip, local);
+
+        // громкость и затухания (звук только внутри самого клипа)
+        let vol = track.muted || local < 0 || t >= end ? 0 : clip.volume / 100;
+        if (clip.fadeInAudio > 0 && local < clip.fadeInAudio) vol *= Math.max(0, local / clip.fadeInAudio);
         if (clip.fadeOutAudio > 0 && end - t < clip.fadeOutAudio) vol *= Math.max(0, (end - t) / clip.fadeOutAudio);
+        if (E.voiceMute) vol = 0;
         if (entry.gain) { entry.gain.gain.value = vol; el.volume = 1; }
         else el.volume = V.clamp(vol, 0, 1);
 
         if (!active) { // предзагрузка следующего клипа
-          if (Math.abs(el.currentTime - clip.in) > 0.05 && !el.seeking) el.currentTime = clip.in;
+          const want = srcTime(clip, wa - clip.start);
+          if (Math.abs(el.currentTime - want) > 0.05 && !el.seeking) el.currentTime = want;
           continue;
         }
 
         if (el.playbackRate !== clip.speed) { el.playbackRate = clip.speed; }
+        const frozen = clip.type === 'video' && (local < 0 || local > clip.duration) && (srcT <= 0 || srcT >= (V.media.get(clip.mediaId)?.duration || 1e9) - 0.05);
 
-        if (E.playing) {
+        if (E.playing && !frozen) {
           if (el.paused) {
             if (Math.abs(el.currentTime - srcT) > 0.05) el.currentTime = srcT;
             const p = el.play();
@@ -151,16 +181,58 @@ V.engine = (() => {
           if (clip.type === 'video' && (el.seeking || el.readyState < 2)) stalled = true;
         } else {
           if (!el.paused) el.pause();
-          if (Math.abs(el.currentTime - srcT) > 0.02 && !el.seeking) el.currentTime = srcT;
+          if (Math.abs(el.currentTime - srcT) > E.seekTolerance && !el.seeking) el.currentTime = srcT;
         }
       }
     }
     return stalled;
   };
+  E.sync = sync;
+
+  /* Точный рендер кадра в момент t: ждём, пока все видео встанут на нужный кадр */
+  E.renderAt = async (t, fps = 30) => {
+    E.time = t;
+    E.seekTolerance = 0.5 / fps;
+    sync();
+    const waits = [];
+    for (const [id, entry] of E.pool) {
+      const el = entry.el;
+      if (el.tagName !== 'VIDEO') continue;
+      if (el.seeking) waits.push(V.once(el, 'seeked', 5000).catch(() => {}));
+      else if (el.readyState < 2 && el.src) waits.push(V.once(el, 'loadeddata', 5000).catch(() => {}));
+    }
+    if (waits.length) await Promise.all(waits);
+    E.render();
+  };
 
   /* ---------- Рендер ---------- */
   const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+  const easeInOut = (p) => p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
   const easeBack = (p) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+
+  /* Ключевые кадры: clip.kf = [{ t, x, y, scale, rotation, opacity }] (t — секунды от начала клипа) */
+  const KF_PROPS = ['x', 'y', 'scale', 'rotation', 'opacity'];
+  E.KF_PROPS = KF_PROPS;
+  const transformAt = (clip, local) => {
+    const kf = clip.kf;
+    const base = { x: clip.x, y: clip.y, scale: clip.scale, rotation: clip.rotation, opacity: clip.opacity };
+    if (!kf || !kf.length) return base;
+    if (local <= kf[0].t) return { ...base, ...pick(kf[0]) };
+    const last = kf[kf.length - 1];
+    if (local >= last.t) return { ...base, ...pick(last) };
+    for (let i = 0; i < kf.length - 1; i++) {
+      const a = kf[i], b = kf[i + 1];
+      if (local >= a.t && local <= b.t) {
+        const p = easeInOut((local - a.t) / Math.max(1e-6, b.t - a.t));
+        const o = {};
+        KF_PROPS.forEach(k => { o[k] = (a[k] ?? base[k]) + ((b[k] ?? base[k]) - (a[k] ?? base[k])) * p; });
+        return o;
+      }
+    }
+    return base;
+  };
+  const pick = (k) => { const o = {}; KF_PROPS.forEach(p => { if (k[p] != null) o[p] = k[p]; }); return o; };
+  E.transformAt = transformAt;
 
   const animState = (clip, local) => {
     const s = { alpha: 1, dx: 0, dy: 0, scale: 1, rot: 0, blur: 0 };
@@ -168,7 +240,7 @@ V.engine = (() => {
       const e = easeOut(p), r = 1 - e;
       switch (kind) {
         case 'fade': s.alpha *= e; break;
-        case 'zoom': s.scale *= dirOut ? 0.6 + 0.4 * e : 0.6 + 0.4 * e; s.alpha *= e; break;
+        case 'zoom': s.scale *= 0.6 + 0.4 * e; s.alpha *= e; break;
         case 'pop': s.scale *= Math.max(0.01, easeBack(p)); s.alpha *= Math.min(1, p * 3); break;
         case 'slide-left': s.dx += -r; break;
         case 'slide-right': s.dx += r; break;
@@ -178,10 +250,42 @@ V.engine = (() => {
         case 'blur': s.blur += 24 * r; s.alpha *= 0.3 + 0.7 * e; break;
       }
     };
-    if (clip.animIn !== 'none' && clip.animInDur > 0 && local < clip.animInDur) apply(clip.animIn, V.clamp(local / clip.animInDur, 0, 1), false);
-    const left = clip.duration - local;
+    const l = V.clamp(local, 0, clip.duration);
+    if (clip.animIn !== 'none' && clip.animInDur > 0 && l < clip.animInDur) apply(clip.animIn, V.clamp(l / clip.animInDur, 0, 1), false);
+    const left = clip.duration - l;
     if (clip.animOut !== 'none' && clip.animOutDur > 0 && left < clip.animOutDur) apply(clip.animOut, V.clamp(left / clip.animOutDur, 0, 1), true);
     return s;
+  };
+
+  /* Эффект перехода для клипа основной дорожки в момент t */
+  const transFx = (clip, track, t) => {
+    const fx = { alpha: 1, dx: 0, scale: 1, dark: 0, clipW: 1, hide: false };
+    const i = track.clips.indexOf(clip);
+    const own = transOf(clip), next = track.clips[i + 1], nt = transOf(next);
+    let role = null, p = 0, type = null;
+    if (own && t >= clip.start - own.dur / 2 && t < clip.start + own.dur / 2) { role = 'in'; p = (t - (clip.start - own.dur / 2)) / own.dur; type = own.type; }
+    else if (nt && t >= next.start - nt.dur / 2 && t < next.start + nt.dur / 2) { role = 'out'; p = (t - (next.start - nt.dur / 2)) / nt.dur; type = nt.type; }
+    if (!role) return fx;
+    p = V.clamp(p, 0, 1);
+    const e = easeInOut(p);
+    switch (type) {
+      case 'fade': if (role === 'in') fx.alpha = e; break;
+      case 'black':
+        if (role === 'out') { fx.hide = p >= 0.5; fx.dark = Math.min(1, p * 2); }
+        else { fx.hide = p < 0.5; fx.dark = Math.min(1, (1 - p) * 2); }
+        break;
+      case 'white':
+        if (role === 'out') { fx.hide = p >= 0.5; fx.light = Math.min(1, p * 2); }
+        else { fx.hide = p < 0.5; fx.light = Math.min(1, (1 - p) * 2); }
+        break;
+      case 'wipe': if (role === 'in') fx.clipW = e; break;
+      case 'slide': fx.dx = role === 'out' ? -e : 1 - e; break;
+      case 'zoom':
+        if (role === 'out') { fx.scale = 1 + 0.5 * e; fx.alpha = 1 - e; }
+        else { fx.scale = 0.75 + 0.25 * e; fx.alpha = e; }
+        break;
+    }
+    return fx;
   };
 
   const resolveAdjust = (clip) => {
@@ -215,25 +319,66 @@ V.engine = (() => {
     return parts.length ? parts.join(' ') : 'none';
   };
 
-  const drawVisual = (clip, src, sw, sh, local) => {
+  /* Хромакей: убираем выбранный цвет (по умолчанию зелёный) */
+  const keyCanvas = document.createElement('canvas');
+  const keyCtx = keyCanvas.getContext('2d', { willReadFrequently: true });
+  const hexRgb = (hex) => { const n = parseInt((hex || '#00ff00').slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const chromaKey = (src, sx, sy, sw, sh, ck) => {
+    const maxW = E.exporting ? 1280 : 640;
+    const k = Math.min(1, maxW / sw);
+    const w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
+    if (keyCanvas.width !== w || keyCanvas.height !== h) { keyCanvas.width = w; keyCanvas.height = h; }
+    keyCtx.clearRect(0, 0, w, h);
+    keyCtx.drawImage(src, sx, sy, sw, sh, 0, 0, w, h);
+    const img = keyCtx.getImageData(0, 0, w, h), d = img.data;
+    const [kr, kg, kb] = hexRgb(ck.color);
+    // сравнение в цветоразностном пространстве (Cb, Cr) — устойчиво к яркости
+    const kcb = -0.169 * kr - 0.331 * kg + 0.5 * kb, kcr = 0.5 * kr - 0.419 * kg - 0.081 * kb;
+    const sim = (ck.sim ?? 0.35) * 180, smooth = Math.max(1, (ck.smooth ?? 0.1) * 180);
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], g = d[i + 1], b = d[i + 2];
+      const cb = -0.169 * r - 0.331 * g + 0.5 * b, cr = 0.5 * r - 0.419 * g - 0.081 * b;
+      const dist = Math.hypot(cb - kcb, cr - kcr);
+      if (dist < sim) d[i + 3] = 0;
+      else if (dist < sim + smooth) {
+        const a = (dist - sim) / smooth;
+        d[i + 3] = d[i + 3] * a;
+        // подавляем цветную кайму
+        if (kg > kr && kg > kb && g > (r + b) / 2) d[i + 1] = (r + b) / 2 + (g - (r + b) / 2) * a;
+      }
+    }
+    keyCtx.putImageData(img, 0, 0);
+    return keyCanvas;
+  };
+
+  const drawVisual = (clip, src, sw, sh, local, fx) => {
     const W = canvas.width, H = canvas.height, k = Math.min(W, H) / 1080;
-    if (!sw || !sh) return;
-    const s = clip.fit === 'cover' ? Math.max(W / sw, H / sh) : clip.fit === 'stretch' ? 1 : Math.min(W / sw, H / sh);
-    const bw = clip.fit === 'stretch' ? W : sw * s;
-    const bh = clip.fit === 'stretch' ? H : sh * s;
+    if (!sw || !sh || (fx && fx.hide)) return;
+    // кадрирование
+    const cr = clip.crop || { l: 0, t: 0, r: 0, b: 0 };
+    let sx = sw * (cr.l || 0), sy = sh * (cr.t || 0);
+    let cw = Math.max(1, sw * (1 - (cr.l || 0) - (cr.r || 0))), ch = Math.max(1, sh * (1 - (cr.t || 0) - (cr.b || 0)));
+    let source = src;
+    if (clip.chroma && clip.chroma.on) { source = chromaKey(src, sx, sy, cw, ch, clip.chroma); sx = 0; sy = 0; cw = source.width; ch = source.height; }
+    const s = clip.fit === 'cover' ? Math.max(W / cw, H / ch) : clip.fit === 'stretch' ? 1 : Math.min(W / cw, H / ch);
+    const bw = clip.fit === 'stretch' ? W : cw * s;
+    const bh = clip.fit === 'stretch' ? H : ch * s;
     const a = animState(clip, local);
+    const tf = transformAt(clip, V.clamp(local, 0, clip.duration));
     const adj = resolveAdjust(clip);
-    const cx = W / 2 + (clip.x + a.dx) * W, cy = H / 2 + (clip.y + a.dy) * H;
-    const sc = clip.scale * a.scale, rot = (clip.rotation + a.rot) * Math.PI / 180;
+    const f = fx || { alpha: 1, dx: 0, scale: 1, dark: 0, clipW: 1 };
+    const cx = W / 2 + (tf.x + a.dx + f.dx) * W, cy = H / 2 + (tf.y + a.dy) * H;
+    const sc = tf.scale * a.scale * f.scale, rot = (tf.rotation + a.rot) * Math.PI / 180;
 
     ctx.save();
-    ctx.globalAlpha = V.clamp(clip.opacity / 100 * a.alpha, 0, 1);
+    if (f.clipW < 1) { ctx.beginPath(); ctx.rect(0, 0, W * f.clipW, H); ctx.clip(); }
+    ctx.globalAlpha = V.clamp(tf.opacity / 100 * a.alpha * f.alpha, 0, 1);
     ctx.globalCompositeOperation = clip.blend || 'source-over';
     ctx.translate(cx, cy);
     ctx.rotate(rot);
     ctx.scale(sc * (clip.flipH ? -1 : 1), sc * (clip.flipV ? -1 : 1));
     ctx.filter = filterString(adj, a.blur, k);
-    ctx.drawImage(src, -bw / 2, -bh / 2, bw, bh);
+    ctx.drawImage(source, sx, sy, cw, ch, -bw / 2, -bh / 2, bw, bh);
     ctx.filter = 'none';
     if (adj.vignette > 0) {
       const g = ctx.createRadialGradient(0, 0, Math.min(bw, bh) * 0.25, 0, 0, Math.hypot(bw, bh) / 2);
@@ -244,7 +389,13 @@ V.engine = (() => {
       ctx.fillRect(-bw / 2, -bh / 2, bw, bh);
     }
     ctx.restore();
-    E.boxes.push({ id: clip.id, cx, cy, hw: bw * Math.abs(sc) / 2, hh: bh * Math.abs(sc) / 2, rot });
+    if (f.dark > 0 || f.light > 0) {
+      ctx.save();
+      ctx.fillStyle = f.light > 0 ? `rgba(255,255,255,${f.light})` : `rgba(0,0,0,${f.dark})`;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+    if (local >= 0 && local < clip.duration) E.boxes.push({ id: clip.id, cx, cy, hw: bw * Math.abs(sc) / 2, hh: bh * Math.abs(sc) / 2, rot });
   };
 
   const hexA = (hex, a) => {
@@ -256,20 +407,28 @@ V.engine = (() => {
     const W = canvas.width, H = canvas.height, k = Math.min(W, H) / 1080;
     const t = clip.text;
     const a = animState(clip, local);
+    const tf = transformAt(clip, local);
     const size = t.size * k;
     const font = `${t.italic ? 'italic ' : ''}${t.bold ? '700 ' : '400 '}${size}px ${t.font}`;
     ctx.save();
     ctx.font = font;
     if ('letterSpacing' in ctx) ctx.letterSpacing = (t.letterSpacing * k) + 'px';
-    const lines = String(t.content || ' ').split('\n');
+    // эффект «печатной машинки»: показываем текст постепенно
+    let content = String(t.content || ' ');
+    if (t.typewriter) {
+      const dur = Math.min(clip.duration * 0.7, Math.max(0.4, content.length * 0.06));
+      content = content.slice(0, Math.max(0, Math.ceil(content.length * V.clamp(local / dur, 0, 1))));
+    }
+    const full = String(t.content || ' ').split('\n');
+    const lines = content.split('\n');
     const lh = size * (t.lineHeight || 1.2);
-    const widths = lines.map(l => ctx.measureText(l || ' ').width);
-    const tw = Math.max(...widths), th = lh * lines.length;
+    const widths = full.map(l => ctx.measureText(l || ' ').width);
+    const tw = Math.max(...widths), th = lh * full.length;
     const pad = size * 0.3;
-    const cx = W / 2 + (clip.x + a.dx) * W, cy = H / 2 + (clip.y + a.dy) * H;
-    const sc = clip.scale * a.scale, rot = (clip.rotation + a.rot) * Math.PI / 180;
+    const cx = W / 2 + (tf.x + a.dx) * W, cy = H / 2 + (tf.y + a.dy) * H;
+    const sc = tf.scale * a.scale, rot = (tf.rotation + a.rot) * Math.PI / 180;
 
-    ctx.globalAlpha = V.clamp(clip.opacity / 100 * a.alpha, 0, 1);
+    ctx.globalAlpha = V.clamp(tf.opacity / 100 * a.alpha, 0, 1);
     ctx.translate(cx, cy);
     ctx.rotate(rot);
     ctx.scale(sc * (clip.flipH ? -1 : 1), sc * (clip.flipV ? -1 : 1));
@@ -314,14 +473,16 @@ V.engine = (() => {
     for (const track of V.project.renderTracks()) {
       if (track.hidden) continue;
       for (const clip of track.clips) {
-        if (t < clip.start || t >= clip.start + clip.duration) continue;
+        const [wa, wb] = windowOf(clip, track);
+        if (t < wa || t >= wb) continue;
         const local = t - clip.start;
+        const fx = track.kind === 'main' ? transFx(clip, track, t) : null;
         if (clip.type === 'video') {
           const entry = E.pool.get(clip.id) || ensureEl(clip);
-          if (entry && entry.el.readyState >= 2) drawVisual(clip, entry.el, entry.el.videoWidth, entry.el.videoHeight, local);
+          if (entry && entry.el.readyState >= 2) drawVisual(clip, entry.el, entry.el.videoWidth, entry.el.videoHeight, local, fx);
         } else if (clip.type === 'image') {
           const m = V.media.get(clip.mediaId);
-          if (m && m.el) drawVisual(clip, m.el, m.width, m.height, local);
+          if (m && m.el) drawVisual(clip, m.el, m.width, m.height, local, fx);
         } else if (clip.type === 'text') {
           drawText(clip, local);
         }
@@ -346,6 +507,7 @@ V.engine = (() => {
         if (ts - stallSince > 3000) stallSince = 0;
       } else stallSince = 0;
       if (!stallSince) E.time += dt;
+      E.seekTolerance = 0.02;
       const D = E.duration();
       if (E.time >= D) {
         E.time = D;

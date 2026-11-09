@@ -1,7 +1,7 @@
 /* Vesna — общие утилиты */
 'use strict';
 
-const V = window.V = {};
+const V = window.V = window.V || {};
 
 V.uid = (p = 'id') => p + '_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 

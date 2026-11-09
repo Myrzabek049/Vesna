@@ -22,6 +22,9 @@ func init() {
 	mime.AddExtensionType(".css", "text/css; charset=utf-8")
 	mime.AddExtensionType(".svg", "image/svg+xml")
 	mime.AddExtensionType(".webmanifest", "application/manifest+json")
+	mime.AddExtensionType(".woff2", "font/woff2")
+	mime.AddExtensionType(".mp3", "audio/mpeg")
+	mime.AddExtensionType(".json", "application/json")
 }
 
 // startServer запускает сервер на 127.0.0.1 и возвращает адрес редактора.

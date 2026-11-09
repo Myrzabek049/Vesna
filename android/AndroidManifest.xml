@@ -1,13 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.vesna"
-    android:versionCode="5"
-    android:versionName="1.3.1">
+    android:versionCode="6"
+    android:versionName="2.0.0">
 
     <uses-sdk android:minSdkVersion="26" android:targetSdkVersion="34" />
 
     <!-- Только для Android 8–9: сохранение готового видео в общую папку «Movies» -->
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- Озвучка: запись голоса с микрофона -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Голос Киви: доступ к системному синтезатору речи (Android 11+) -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
 
     <application
         android:label="Vesna"

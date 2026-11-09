@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 rm -rf www && mkdir www
-cp -r ../index.html ../css ../js ../icons ../manifest.webmanifest www/
+cp -r ../index.html ../css ../js ../icons ../fonts ../library ../manifest.webmanifest ../version.json www/
 # ресурсы (иконка, манифест DPI, сведения о версии) — если есть llvm-windres
 if command -v llvm-windres-18 >/dev/null || command -v llvm-windres >/dev/null; then
   WR=$(command -v llvm-windres-18 || command -v llvm-windres)

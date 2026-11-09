@@ -47,6 +47,14 @@ V.timeline = (() => {
 
       const row = V.el('div', { class: 'track-row ' + tr.kind + (tr.hidden ? ' hidden-track' : ''), style: { height: h + 'px' }, 'data-track': tr.id });
       for (const c of tr.clips) row.append(clipEl(c, tr));
+      // кнопки переходов между соседними клипами основной дорожки
+      if (tr.kind === 'main') tr.clips.forEach((c, i) => {
+        if (i === 0) return;
+        const on = c.trans && c.trans.type && c.trans.type !== 'none';
+        const b = V.el('button', { class: 'trans-btn' + (on ? ' on' : ''), title: on ? 'Переход: ' + (V.TRANSITIONS.find(t => t.id === c.trans.type) || {}).name : 'Добавить переход', 'data-clip': c.id,
+          style: { left: (t2x(c.start) - 11) + 'px' } }, on ? '⧓' : '+');
+        row.append(b);
+      });
       tracksEl.append(row);
     }
     drawRuler(width);
@@ -81,6 +89,7 @@ V.timeline = (() => {
       V.el('div', { class: 'handle r', 'data-h': 'r' }),
     );
     if (c.type === 'video' && m && !m.thumb) el.classList.add('nothumb');
+    if (c.kf && c.kf.length) c.kf.forEach(k => el.append(V.el('span', { class: 'kf-dot', style: { left: (k.t * T.pps - 4) + 'px' } })));
     return el;
   };
 
@@ -130,7 +139,7 @@ V.timeline = (() => {
 
   const startScrub = (e) => {
     e.preventDefault();
-    const move = (ev) => V.engine.seek(x2t(contentX(ev)));
+    const move = (ev) => { if (!T.pinching) V.engine.seek(x2t(contentX(ev))); };
     move(e);
     const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); };
     window.addEventListener('pointermove', move);
@@ -161,6 +170,7 @@ V.timeline = (() => {
     const pts = snapPoints(id);
 
     const move = (ev) => {
+      if (T.pinching) return;
       const dx = ev.clientX - x0;
       if (!moved && Math.abs(dx) < 3 && !handle && Math.abs(ev.clientY - e.clientY) < 3) return;
       if (!moved) { moved = true; P.checkpoint(); }
@@ -292,11 +302,24 @@ V.timeline = (() => {
     ruler.addEventListener('pointerdown', startScrub);
     playhead.addEventListener('pointerdown', startScrub);
     tracksEl.addEventListener('pointerdown', (e) => {
+      const tb = e.target.closest('.trans-btn');
+      if (tb) { e.stopPropagation(); return; }
       const c = e.target.closest('.clip');
       if (c) return startClipDrag(e, c);
       V.project.select(null);
       T.render();
       startScrub(e);
+    });
+    tracksEl.addEventListener('click', (e) => {
+      const tb = e.target.closest('.trans-btn');
+      if (!tb) return;
+      V.project.select(tb.dataset.clip);
+      if (V.mobile.isMobile()) V.mobile.openInsp('Переход');
+      else {
+        V.inspector.render();
+        const sec = [...document.querySelectorAll('.insp-section summary')].find(s => s.textContent.startsWith('Переход'));
+        if (sec) sec.parentElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
     tracksEl.addEventListener('dblclick', (e) => {
       const c = e.target.closest('.clip');

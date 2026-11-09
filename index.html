@@ -8,6 +8,7 @@
   <title>Vesna — видеоредактор</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/fonts.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -23,13 +24,20 @@
       <div class="hub-hello">
         <h1>Что смонтируем сегодня?</h1>
         <p>Все твои проекты сохраняются на этом устройстве.</p>
-        <button class="btn primary hub-new" id="hubNew">＋ Новый проект</button>
+        <div class="hub-buttons">
+          <button class="btn primary hub-new" id="hubNew">＋ Новый проект</button>
+          <label class="btn ghost hub-open-file" title="Открыть проект из файла .vesna">
+            <input type="file" id="hubImport" accept=".vesna,application/octet-stream" hidden>📂 Открыть из файла
+          </label>
+        </div>
         <div class="hub-formats" id="hubFormats" hidden></div>
       </div>
     </div>
+    <div class="hub-update" id="hubUpdate" hidden></div>
     <h2 class="hub-title">Мои проекты <span id="hubCount"></span></h2>
     <div class="hub-grid" id="hubGrid"></div>
     <p class="hub-empty" id="hubEmpty" hidden>Пока пусто. Нажми «Новый проект», чтобы начать.</p>
+    <footer class="hub-foot"><span id="hubVersion"></span> · <button class="linklike" id="hubCheckUpd">Проверить обновления</button></footer>
   </section>
 
   <div id="app">
@@ -61,13 +69,15 @@
 
     <main class="workspace">
       <!-- Левая панель: ресурсы -->
-      <aside class="panel left-panel">
+      <aside class="panel left-panel" aria-label="Материалы">
+        <div class="sheet-head"><b class="sheet-title">Материалы</b><button class="btn ghost sheet-close" aria-label="Закрыть">✕</button></div>
         <nav class="tabs" id="leftTabs">
-          <button class="tab active" data-tab="media">Медиа</button>
-          <button class="tab" data-tab="text">Текст</button>
-          <button class="tab" data-tab="stickers">Стикеры</button>
-          <button class="tab" data-tab="filters">Фильтры</button>
-          <button class="tab" data-tab="effects">Эффекты</button>
+          <button class="tab active" data-tab="media"><i>🎞</i>Медиа</button>
+          <button class="tab" data-tab="audio"><i>🎵</i>Аудио</button>
+          <button class="tab" data-tab="text"><i>T</i>Текст</button>
+          <button class="tab" data-tab="stickers"><i>😊</i>Стикеры</button>
+          <button class="tab" data-tab="filters"><i>🎨</i>Фильтры</button>
+          <button class="tab" data-tab="effects"><i>✨</i>Эффекты</button>
         </nav>
 
         <section class="tab-body active" data-body="media">
@@ -84,11 +94,35 @@
           </div>
         </section>
 
+        <section class="tab-body" data-body="audio">
+          <button class="btn primary rec-btn" id="btnVoice">🎙 Записать озвучку</button>
+          <p class="hint">Запись начнётся с места плейхеда, видео будет играть без звука.</p>
+          <h4 class="sub">Музыка — бесплатно, без авторских прав</h4>
+          <div class="lib-list" id="musicList"></div>
+          <h4 class="sub">Звуковые эффекты</h4>
+          <div class="sfx-grid" id="sfxList"></div>
+        </section>
+
         <section class="tab-body" data-body="text">
           <div class="preset-list" id="textPresets"></div>
+          <h4 class="sub">Субтитры</h4>
+          <p class="hint">Вставь текст: каждая строка станет отдельной надписью, по очереди с места плейхеда.</p>
+          <textarea class="textarea" id="subsText" rows="4" placeholder="Привет всем!&#10;Сегодня покажу, как…"></textarea>
+          <div class="chip-row">
+            <label class="ctl"><span class="cl">На строку, с</span><input type="number" class="num" id="subsDur" min="0.5" step="0.5" value="2.5"></label>
+            <button class="btn sm primary" id="subsAdd">Добавить субтитры</button>
+          </div>
+          <h4 class="sub">Мои шрифты</h4>
+          <div id="myFonts"></div>
+          <label class="btn ghost sm upload-btn"><input type="file" id="fontInput" multiple accept=".ttf,.otf,.woff,.woff2" hidden>＋ Загрузить свой шрифт (.ttf, .otf, .woff)</label>
         </section>
 
         <section class="tab-body" data-body="stickers">
+          <h4 class="sub">Мои стикеры</h4>
+          <div class="sticker-grid my" id="myStickers"></div>
+          <p class="hint" id="myStickersEmpty">Добавь свои картинки (PNG с прозрачным фоном отлично подходит).</p>
+          <label class="btn ghost sm upload-btn"><input type="file" id="stickerInput" multiple accept="image/*" hidden>＋ Загрузить свои стикеры</label>
+          <h4 class="sub">Эмодзи</h4>
           <div class="sticker-grid" id="stickerGrid"></div>
         </section>
 
@@ -103,6 +137,8 @@
           <div class="chip-row" id="animInGrid"></div>
           <h4 class="sub">Исчезновение</h4>
           <div class="chip-row" id="animOutGrid"></div>
+          <h4 class="sub">Переходы между клипами</h4>
+          <p class="hint">Нажми на значок ⧓ между клипами на основной дорожке, чтобы выбрать переход.</p>
         </section>
       </aside>
 
@@ -125,7 +161,8 @@
       </section>
 
       <!-- Правая панель: свойства -->
-      <aside class="panel right-panel">
+      <aside class="panel right-panel" aria-label="Свойства клипа">
+        <div class="sheet-head"><b class="sheet-title" id="inspTitle">Свойства</b><button class="btn ghost sheet-close" aria-label="Закрыть">✕</button></div>
         <div class="inspector" id="inspector">
           <div class="inspector-empty">
             <p>Выберите клип на таймлайне, чтобы изменить его свойства.</p>
@@ -160,13 +197,22 @@
         </div>
       </div>
     </section>
+    <nav class="mobile-bar" id="mobileBar" aria-label="Инструменты"></nav>
+    <div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
   </div>
 
   <!-- Диалог экспорта -->
   <dialog id="exportDialog" class="dialog">
     <form method="dialog" class="dialog-body" id="exportForm">
       <div class="export-head"><div id="exportMascot"></div><h3>Экспорт видео</h3><button type="button" class="btn ghost help-btn" title="Подсказки" aria-label="Подсказки">?</button></div>
-      <p class="hint">Без водяных знаков и ограничений. Видео рендерится в реальном времени — не сворачивайте вкладку.</p>
+      <p class="hint">Без водяных знаков и ограничений. «Точный» режим собирает видео кадр за кадром, без пропусков.</p>
+      <label class="field">
+        <span>Режим</span>
+        <select id="exportMode" class="select">
+          <option value="precise" selected>Точный (без рывков)</option>
+          <option value="fast">Быстрый (реальное время)</option>
+        </select>
+      </label>
       <label class="field">
         <span>Разрешение</span>
         <select id="exportRes" class="select">
@@ -213,6 +259,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="js/util.js"></script>
+  <script src="js/version.js"></script>
+  <script src="js/vendor/mp4-muxer.js"></script>
   <script src="js/mascot.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/presets.js"></script>
@@ -222,7 +270,12 @@
   <script src="js/timeline.js"></script>
   <script src="js/inspector.js"></script>
   <script src="js/exporter.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/kiwi.js"></script>
+  <script src="js/voice.js"></script>
+  <script src="js/backup.js"></script>
   <script src="js/hub.js"></script>
+  <script src="js/mobile.js"></script>
   <script src="js/help.js"></script>
   <script src="js/app.js"></script>
 </body>

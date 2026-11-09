@@ -42,13 +42,19 @@ V.ANIMS_OUT = [
 
 V.FONTS = [
   { id: 'system-ui, sans-serif', name: 'Системный' },
-  { id: 'Arial, Helvetica, sans-serif', name: 'Arial' },
+  { id: '"Montserrat", sans-serif', name: 'Montserrat' },
+  { id: '"Rubik", sans-serif', name: 'Rubik' },
+  { id: '"Oswald", sans-serif', name: 'Oswald' },
+  { id: '"Russo One", sans-serif', name: 'Russo One' },
+  { id: '"Comfortaa", sans-serif', name: 'Comfortaa' },
+  { id: '"Playfair Display", serif', name: 'Playfair Display' },
+  { id: '"Lobster", cursive', name: 'Lobster' },
+  { id: '"Caveat", cursive', name: 'Caveat (рукописный)' },
+  { id: '"Amatic SC", cursive', name: 'Amatic SC' },
+  { id: '"Press Start 2P", monospace', name: 'Press Start 2P (пиксели)' },
   { id: 'Georgia, serif', name: 'Georgia' },
-  { id: '"Times New Roman", serif', name: 'Times' },
   { id: '"Courier New", monospace', name: 'Courier' },
   { id: 'Impact, "Arial Black", sans-serif', name: 'Impact' },
-  { id: '"Trebuchet MS", sans-serif', name: 'Trebuchet' },
-  { id: '"Comic Sans MS", cursive', name: 'Рукописный' },
 ];
 
 V.TEXT_DEFAULT = {
@@ -66,17 +72,32 @@ V.TEXT_DEFAULT = {
   shadow: 0,
   letterSpacing: 0,
   lineHeight: 1.2,
+  typewriter: false,
 };
+
+V.TRANSITIONS = [
+  { id: 'none', name: 'Без перехода' },
+  { id: 'fade', name: 'Наплыв' },
+  { id: 'black', name: 'Через чёрный' },
+  { id: 'white', name: 'Вспышка' },
+  { id: 'slide', name: 'Сдвиг' },
+  { id: 'wipe', name: 'Шторка' },
+  { id: 'zoom', name: 'Приближение' },
+];
 
 V.TEXT_PRESETS = [
   { name: 'Обычный', t: {} },
-  { name: 'Заголовок', t: { size: 140, font: 'Impact, "Arial Black", sans-serif', strokeWidth: 6 } },
+  { name: 'Заголовок', t: { size: 140, font: '"Russo One", sans-serif', strokeWidth: 6 } },
   { name: 'Субтитры', t: { size: 64, bold: false, bgOpacity: 60 }, y: 0.38 },
   { name: 'Неон', t: { color: '#9dff6e', shadow: 30, size: 110 } },
   { name: 'Плашка', t: { color: '#101413', bgColor: '#ffd84d', bgOpacity: 100, size: 80 } },
   { name: 'Контур', t: { color: '#ffffff', strokeColor: '#ff4d7a', strokeWidth: 10, size: 120 } },
-  { name: 'Классика', t: { font: 'Georgia, serif', italic: true, bold: false, size: 100, shadow: 12 } },
-  { name: 'Печатная машинка', t: { font: '"Courier New", monospace', bold: false, size: 72, color: '#f5f1e6' } },
+  { name: 'Классика', t: { font: '"Playfair Display", serif', italic: true, bold: false, size: 100, shadow: 12 } },
+  { name: 'Печатная машинка', t: { font: '"Courier New", monospace', bold: false, size: 72, color: '#f5f1e6', typewriter: true } },
+  { name: 'Рукопись', t: { font: '"Caveat", cursive', bold: true, size: 120, color: '#ffe9a8' } },
+  { name: 'Мягкий', t: { font: '"Comfortaa", sans-serif', size: 96, color: '#ffffff', bgColor: '#ff7eb6', bgOpacity: 90 } },
+  { name: 'Ретро-игра', t: { font: '"Press Start 2P", monospace', bold: false, size: 56, color: '#7ee08a', strokeWidth: 4 } },
+  { name: 'Лобстер', t: { font: '"Lobster", cursive', bold: false, size: 120, color: '#ffffff', shadow: 18 } },
 ];
 
 V.STICKERS = ['😀','😂','🥹','😍','😎','🤯','🥳','😭','😡','🤔','👍','👏','🙏','💪','🔥','✨','⭐','💥','💯','❤️','💚','💙','💜','🖤','🌸','🌷','🌱','🌈','☀️','🌙','⚡','❄️','🎉','🎁','🎵','🎬','📸','🎮','⚽','🏆','🚀','✈️','🍕','🍔','☕','🍰','🐱','🐶','🦊','🐸','👀','💬','➡️','⬅️','⬆️','⬇️','✅','❌','❓','❗'];

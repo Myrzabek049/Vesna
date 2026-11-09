@@ -77,6 +77,7 @@ V.hub = (() => {
     E().setResolution(E().previewBase);
     P().changed();
     hide();
+    setTimeout(() => V.kiwi.tour(), 500);
   };
 
   H.create = async (aspect = '16:9') => {
@@ -88,6 +89,16 @@ V.hub = (() => {
     H.index.push({ id: s.id, name: s.name, aspect, created: s.created, updated: Date.now(), duration: 0, clips: 0, thumb: null });
     await saveIndex();
     await H.open(s.id);
+  };
+
+  /* Проект, восстановленный из файла .vesna */
+  H.addImported = async (s) => {
+    await V.storage.setKV(KEY(s.id), JSON.stringify(s));
+    const clips = s.tracks.flatMap(t => t.clips);
+    H.index.push({ id: s.id, name: s.name, aspect: s.aspect, created: s.created, updated: Date.now(),
+      duration: clips.reduce((m, c) => Math.max(m, c.start + c.duration), 0), clips: clips.length, thumb: null });
+    await saveIndex();
+    render();
   };
 
   H.duplicate = async (id) => {
@@ -140,6 +151,7 @@ V.hub = (() => {
     $('hub').hidden = false;
     document.body.classList.add('hub-open');
     render();
+    setTimeout(() => V.kiwi.checkUpdate(false), 1500);
   };
   const hide = () => {
     $('hub').hidden = true;
@@ -169,6 +181,7 @@ V.hub = (() => {
       V.el('button', { onclick: () => { closeMenu(); H.open(p.id); } }, '▶  Открыть'),
       V.el('button', { onclick: () => { closeMenu(); H.rename(p.id); } }, '✎  Переименовать'),
       V.el('button', { onclick: () => { closeMenu(); H.duplicate(p.id); } }, '⧉  Дублировать'),
+      V.el('button', { onclick: () => { closeMenu(); V.backup.exportProject(p.id); } }, '💾  Сохранить копию в файл'),
       V.el('button', { class: 'danger', onclick: () => { closeMenu(); H.remove(p.id); } }, '🗑  Удалить'),
     );
     document.body.append(menu);
@@ -234,6 +247,9 @@ V.hub = (() => {
     document.addEventListener('click', (e) => { if (menu && !menu.contains(e.target)) closeMenu(); });
     window.addEventListener('resize', closeMenu);
     $('btnHome').addEventListener('click', () => H.show());
+    $('hubImport').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) V.backup.importFile(f); });
+    $('hubCheckUpd').addEventListener('click', () => V.kiwi.checkUpdate(true));
+    $('hubVersion').textContent = 'Vesna ' + V.VERSION;
     render();
   };
 

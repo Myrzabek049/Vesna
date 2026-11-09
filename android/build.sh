@@ -11,7 +11,7 @@ OUT=build
 rm -rf "$OUT" && mkdir -p "$OUT"/{res,gen,classes,dex,assets/www}
 
 echo "→ Копирование веб-приложения в assets"
-cp -r ../index.html ../css ../js ../icons ../manifest.webmanifest "$OUT/assets/www/"
+cp -r ../index.html ../css ../js ../icons ../fonts ../library ../manifest.webmanifest ../version.json "$OUT/assets/www/"
 
 echo "→ Ресурсы (aapt2)"
 "$BT/aapt2" compile --dir res -o "$OUT/res/res.zip"

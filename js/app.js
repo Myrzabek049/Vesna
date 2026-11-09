@@ -230,7 +230,9 @@
     if (!clip) return;
     e.preventDefault();
     const box = E.boxes.find(b => b.id === clip.id);
-    const o = { x: clip.x, y: clip.y, scale: clip.scale, rotation: clip.rotation };
+    const hasKf = clip.kf && clip.kf.length;
+    const base = { x: clip.x, y: clip.y, scale: clip.scale, rotation: clip.rotation, opacity: clip.opacity };
+    const o = hasKf ? E.transformAt(clip, V.clamp(E.time - clip.start, 0, clip.duration)) : { ...base };
     const W = canvas.width, H = canvas.height;
     const d0 = box ? Math.hypot(pt.x - box.cx, pt.y - box.cy) : 1;
     const a0 = box ? Math.atan2(pt.y - box.cy, pt.x - box.cx) : 0;
@@ -253,6 +255,7 @@
         if (Math.abs(ny) < 0.012) ny = 0;
         clip.x = nx; clip.y = ny;
       }
+      if (hasKf) V.inspector.syncKeyframe(clip, base);
       E.dirty = true;
     };
     const up = () => {
@@ -281,6 +284,33 @@
 
   /* ---------- Хаб проектов ---------- */
   V.help.init();
+  await V.library.init();
+  V.mobile.init();
+  $('btnVoice').addEventListener('click', () => V.voice.start());
+  // субтитры: каждая строка — отдельная надпись
+  $('subsAdd').addEventListener('click', () => {
+    const lines = $('subsText').value.split('\n').map(l => l.trim()).filter(Boolean);
+    if (!lines.length) return V.toast('Вставь текст субтитров');
+    const dur = Math.max(0.5, +$('subsDur').value || 2.5);
+    P.mutate((st) => {
+      let t = E.time;
+      let track = st.tracks.find(tr => tr.kind === 'text' && !tr.clips.some(c => c.start < t + dur * lines.length && c.start + c.duration > t));
+      if (!track) track = P.addTrack('text');
+      const preset = V.TEXT_PRESETS.find(p => p.name === 'Субтитры');
+      lines.forEach(line => {
+        track.clips.push({
+          id: V.uid('clip'), type: 'text', mediaId: null, name: line, start: t, duration: dur, in: 0, speed: 1, volume: 100,
+          fadeInAudio: 0, fadeOutAudio: 0, x: 0, y: preset.y, scale: 1, rotation: 0, opacity: 100, flipH: false, flipV: false,
+          fit: 'contain', filter: 'none', adjust: { ...V.DEFAULT_ADJUST }, animIn: 'none', animInDur: 0.3, animOut: 'none', animOutDur: 0.3,
+          blend: 'source-over', text: { ...V.TEXT_DEFAULT, ...preset.t, content: line },
+        });
+        t += dur;
+      });
+      P.sortTrack(track);
+    });
+    $('subsText').value = '';
+    V.toast(`Добавлено субтитров: ${lines.length}`);
+  });
   await V.hub.init();
   await V.hub.show();
   hideSplash();
@@ -290,6 +320,9 @@
   /* Хуки для Android-приложения */
   window.VesnaSave = () => V.hub.saveCurrent(true);
   window.VesnaBack = () => {
+    if (V.voice.recording) { V.voice.cancel(); return true; }
+    if (V.help.on) { V.help.toggle(false); return true; }
+    if (V.mobile.isOpen()) { V.mobile.close(); return true; }
     if (V.hub.visible()) return false;            // из хаба — выход из приложения
     const dlg = document.querySelector('dialog[open]');
     if (dlg) { V.exporter.cancel(); return true; }

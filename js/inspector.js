@@ -14,10 +14,28 @@ V.inspector = (() => {
     const c = P().selected();
     if (!c) return;
     begin();
+    const before = c.kf && c.kf.length ? { x: c.x, y: c.y, scale: c.scale, rotation: c.rotation, opacity: c.opacity } : null;
     fn(c);
+    if (before) syncKeyframe(c, before);
     I.busy = true;
     P().changed();
     I.busy = false;
+  };
+
+  /* Если у клипа есть ключевые кадры, правка положения/размера записывается в кадр под плейхедом */
+  const syncKeyframe = (c, before) => {
+    const changed = V.engine.KF_PROPS.filter(p => c[p] !== before[p]);
+    if (!changed.length) return;
+    const t = V.clamp(V.engine.time - c.start, 0, c.duration);
+    let k = c.kf.find(k => Math.abs(k.t - t) < 0.05);
+    if (!k) {
+      const cur = V.engine.transformAt({ ...c, ...before }, t);
+      k = { t: +t.toFixed(3), ...cur };
+      c.kf.push(k);
+      c.kf.sort((a, b) => a.t - b.t);
+    }
+    changed.forEach(p => { k[p] = c[p]; });
+    Object.assign(c, before); // базовые значения не трогаем — всё в кадрах
   };
 
   /* --- конструкторы контролов --- */
@@ -74,12 +92,13 @@ V.inspector = (() => {
     ta.addEventListener('change', end);
     return section('Текст',
       ta,
-      select('Шрифт', t.font, V.FONTS, (c, v) => { c.text.font = v; }),
+      select('Шрифт', t.font, V.library.fontList(), (c, v) => { c.text.font = v; }),
       range('Размер', t.size, 12, 400, 1, (c, v) => { c.text.size = v; }),
       color('Цвет', t.color, (c, v) => { c.text.color = v; }),
       V.el('div', { class: 'chip-row' },
         toggle('Жирный', t.bold, (c, v) => { c.text.bold = v; }),
         toggle('Курсив', t.italic, (c, v) => { c.text.italic = v; }),
+        toggle('⌨ Печатная машинка', !!t.typewriter, (c, v) => { c.text.typewriter = v; }),
       ),
       chips([{ id: 'left', name: '⇤ Влево' }, { id: 'center', name: '≡ Центр' }, { id: 'right', name: 'Вправо ⇥' }], t.align, (c, v) => { c.text.align = v; }),
       range('Межбукв.', t.letterSpacing, -10, 60, 1, (c, v) => { c.text.letterSpacing = v; }),
@@ -270,6 +289,93 @@ V.inspector = (() => {
     inp.click();
   };
 
+  /* --- Кадрирование --- */
+  const cropSection = (c) => {
+    const cr = c.crop || { l: 0, t: 0, r: 0, b: 0 };
+    const set = (k) => (c, v) => { c.crop = { ...(c.crop || { l: 0, t: 0, r: 0, b: 0 }), [k]: v / 100 }; };
+    const preset = (name, w, h) => V.el('button', { class: 'chip', type: 'button', onclick: () => {
+      const m = V.media.get(c.mediaId); if (!m || !m.width) return;
+      const ar = m.width / m.height, want = w / h;
+      apply(c => { c.crop = ar > want ? { l: (1 - want / ar) / 2, r: (1 - want / ar) / 2, t: 0, b: 0 } : { t: (1 - ar / want) / 2, b: (1 - ar / want) / 2, l: 0, r: 0 }; c.fit = 'contain'; });
+      end(); I.render();
+    } }, name);
+    return section('Кадрирование',
+      V.el('div', { class: 'chip-row wrap' }, preset('9:16', 9, 16), preset('16:9', 16, 9), preset('1:1', 1, 1), preset('4:5', 4, 5),
+        V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.crop = { l: 0, t: 0, r: 0, b: 0 }; }); end(); I.render(); } }, 'Сбросить')),
+      range('Слева', Math.round(cr.l * 100), 0, 45, 1, set('l'), v => v + '%').setDefault(0),
+      range('Справа', Math.round(cr.r * 100), 0, 45, 1, set('r'), v => v + '%').setDefault(0),
+      range('Сверху', Math.round(cr.t * 100), 0, 45, 1, set('t'), v => v + '%').setDefault(0),
+      range('Снизу', Math.round(cr.b * 100), 0, 45, 1, set('b'), v => v + '%').setDefault(0),
+    );
+  };
+
+  /* --- Хромакей --- */
+  const chromaSection = (c) => {
+    const ck = c.chroma || { on: false, color: '#00ff00', sim: 0.35, smooth: 0.1 };
+    const upd = (k) => (c, v) => { c.chroma = { ...(c.chroma || ck), [k]: v }; };
+    return section('Хромакей',
+      V.el('p', { class: 'hint' }, 'Убирает зелёный (или другой) фон. Положи клип на дорожку оверлея поверх нужного фона.'),
+      V.el('div', { class: 'chip-row' },
+        toggle(ck.on ? '✓ Включён' : 'Включить', ck.on, (c, v) => { c.chroma = { ...(c.chroma || ck), on: v }; }),
+        V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.chroma = { ...(c.chroma || ck), on: true, color: '#00ff00' }; }); end(); I.render(); } }, 'Зелёный'),
+        V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.chroma = { ...(c.chroma || ck), on: true, color: '#0047ff' }; }); end(); I.render(); } }, 'Синий')),
+      color('Цвет фона', ck.color, upd('color')),
+      range('Сила', Math.round(ck.sim * 100), 5, 80, 1, (c, v) => upd('sim')(c, v / 100), v => v + '%').setDefault(35),
+      range('Мягкость', Math.round(ck.smooth * 100), 0, 50, 1, (c, v) => upd('smooth')(c, v / 100), v => v + '%').setDefault(10),
+    );
+  };
+
+  /* --- Ключевые кадры --- */
+  const kfSection = (c) => {
+    const local = V.engine.time - c.start;
+    const inside = local >= 0 && local <= c.duration;
+    const kf = c.kf || [];
+    const at = kf.find(k => Math.abs(k.t - local) < 0.05);
+    const snapshot = (c, t) => {
+      const cur = V.engine.transformAt(c, t);
+      const k = { t: +t.toFixed(3) };
+      V.engine.KF_PROPS.forEach(p => { k[p] = cur[p]; });
+      return k;
+    };
+    return section('Ключевые кадры',
+      V.el('p', { class: 'hint' }, 'Поставь плейхед, измени положение, размер, поворот или прозрачность и нажми «◆ Добавить». Между кадрами клип будет плавно меняться.'),
+      V.el('div', { class: 'chip-row wrap' },
+        V.el('button', { class: 'btn sm primary', type: 'button', disabled: !inside, onclick: () => {
+          apply(c => {
+            const t = V.clamp(V.engine.time - c.start, 0, c.duration);
+            const list = (c.kf || []).filter(k => Math.abs(k.t - t) >= 0.05);
+            list.push(snapshot(c, t));
+            c.kf = list.sort((a, b) => a.t - b.t);
+          });
+          end(); I.render(); V.toast('Ключевой кадр добавлен ◆');
+        } }, at ? '◆ Обновить кадр' : '◆ Добавить кадр'),
+        at ? V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.kf = c.kf.filter(k => k !== c.kf.find(x => Math.abs(x.t - local) < 0.05)); }); end(); I.render(); } }, 'Удалить этот') : null,
+        kf.length ? V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.kf = []; }); end(); I.render(); } }, 'Очистить все') : null,
+      ),
+      V.el('div', { class: 'chip-row wrap' },
+        V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.kf = [{ t: 0, x: c.x, y: c.y, scale: c.scale, rotation: c.rotation, opacity: c.opacity }, { t: c.duration, x: c.x, y: c.y, scale: c.scale * 1.25, rotation: c.rotation, opacity: c.opacity }]; }); end(); I.render(); } }, '🔍 Медленное приближение'),
+        V.el('button', { class: 'chip', type: 'button', onclick: () => { apply(c => { c.kf = [{ t: 0, x: c.x - 0.08, y: c.y, scale: c.scale * 1.2, rotation: c.rotation, opacity: c.opacity }, { t: c.duration, x: c.x + 0.08, y: c.y, scale: c.scale * 1.2, rotation: c.rotation, opacity: c.opacity }]; }); end(); I.render(); } }, '↔ Панорама'),
+      ),
+      kf.length ? V.el('div', { class: 'kf-list' }, kf.map(k => V.el('button', { class: 'chip' + (k === at ? ' active' : ''), type: 'button', onclick: () => V.engine.seek(c.start + k.t) }, '◆ ' + V.fmtTime(k.t)))) : null,
+      !inside ? V.el('p', { class: 'hint' }, 'Плейхед сейчас вне клипа.') : null,
+    );
+  };
+
+  /* --- Переход (только для клипов основной дорожки, кроме первого) --- */
+  const transSection = (c) => {
+    const tr = V.project.trackOf(c.id);
+    if (!tr || tr.kind !== 'main' || tr.clips.indexOf(c) === 0) return null;
+    const cur = c.trans || { type: 'none', dur: 0.6 };
+    return section('Переход',
+      V.el('p', { class: 'hint' }, 'Как этот клип сменяет предыдущий.'),
+      V.el('div', { class: 'chip-row wrap' }, V.TRANSITIONS.map(t => V.el('button', {
+        class: 'chip' + (cur.type === t.id ? ' active' : ''), type: 'button',
+        onclick: () => { apply(c => { c.trans = t.id === 'none' ? null : { type: t.id, dur: cur.dur || 0.6 }; }); end(); I.render(); },
+      }, t.name))),
+      cur.type !== 'none' ? range('Длит.', cur.dur, 0.2, 2, 0.1, (c, v) => { c.trans = { ...c.trans, dur: v }; }, v => (+v).toFixed(1) + ' с') : null,
+    );
+  };
+
   /* --- сборка панели --- */
   I.render = () => {
     const c = P().selected();
@@ -294,19 +400,28 @@ V.inspector = (() => {
       V.el('span', { class: 'insp-type ' + c.type }, titles[c.type]),
       V.el('span', { class: 'insp-name', title: c.name || '' }, c.type === 'text' ? '' : (c.name || '')),
     ));
-    root.append(V.el('div', { class: 'chip-row insp-actions' },
+    if (!I.focus) root.append(V.el('div', { class: 'chip-row insp-actions' },
       button('✂ Разрезать', () => V.project.splitAtPlayhead()),
       button('⧉ Копия', () => V.project.duplicate(c.id)),
       c.type === 'video' ? button('❄ Стоп-кадр', () => freezeFrame(c)) : null,
       c.mediaId ? button('⇄ Заменить', () => replaceMedia(c)) : null,
       button('🗑', () => V.project.remove(c.id), 'danger'),
     ));
-    if (c.type === 'text') root.append(textSection(c));
-    if (c.type !== 'audio') root.append(transformSection(c));
-    if (c.type === 'video' || c.type === 'image') root.append(colorSection(c));
-    if (c.type === 'video' || c.type === 'audio') root.append(speedSection(c), audioSection(c));
-    if (c.type !== 'audio') root.append(animSection(c));
-    root.append(timeSection(c));
+    const secs = [];
+    if (c.type === 'text') secs.push(textSection(c));
+    if (c.type !== 'audio') secs.push(transformSection(c));
+    if (c.type !== 'audio') secs.push(kfSection(c));
+    if (c.type === 'video' || c.type === 'image') secs.push(colorSection(c), cropSection(c), chromaSection(c));
+    if (c.type === 'video' || c.type === 'audio') secs.push(speedSection(c), audioSection(c));
+    secs.push(transSection(c));
+    if (c.type !== 'audio') secs.push(animSection(c));
+    secs.push(timeSection(c));
+    // на телефоне можно показать только один раздел
+    const focus = I.focus;
+    secs.filter(Boolean).forEach(sec => {
+      if (focus && !sec.querySelector('summary').textContent.startsWith(focus)) return;
+      root.append(sec);
+    });
   };
 
   I.init = () => {
@@ -321,8 +436,19 @@ V.inspector = (() => {
       I.render();
     });
     V.bus.on('trim', () => {});
+    V.bus.on('fonts', () => I.render());
+    // секция ключевых кадров зависит от положения плейхеда
+    let lastKfState = '';
+    V.bus.on('time', () => {
+      const c = P().selected();
+      if (!c || !c.kf || gestureOpen || V.engine.playing) return;
+      const local = V.engine.time - c.start;
+      const st = (c.kf.find(k => Math.abs(k.t - local) < 0.05) ? 'on' : 'off') + (local >= 0 && local <= c.duration);
+      if (st !== lastKfState) { lastKfState = st; I.render(); }
+    });
     I.render();
   };
 
+  I.syncKeyframe = (c, before) => { if (c.kf && c.kf.length) syncKeyframe(c, before); };
   return I;
 })();

@@ -154,7 +154,8 @@ V.project = (() => {
     }
     track.clips.push(clip);
     sortTrack(track);
-    P.selectedId = clip.id;
+    // медиа не выделяем: панель материалов остаётся под рукой (стикеры выделяют явно)
+    if (opts.select) P.selectedId = clip.id;
     return clip;
   });
 
@@ -214,6 +215,12 @@ V.project = (() => {
       right.duration = c.duration - left;
       right.in = c.in + left * c.speed;
       right.animIn = 'none';
+      right.trans = null;
+      if (c.kf && c.kf.length) {
+        // ключевые кадры делим между частями
+        right.kf = c.kf.filter(k => k.t >= left).map(k => ({ ...k, t: k.t - left }));
+        c.kf = c.kf.filter(k => k.t <= left);
+      }
       right.fadeInAudio = 0;
       c.duration = left;
       c.animOut = 'none';

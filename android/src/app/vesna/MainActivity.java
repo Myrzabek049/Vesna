@@ -13,6 +13,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import android.webkit.PermissionRequest;
+import java.util.Locale;
 import android.util.Base64;
 import android.view.View;
 import android.view.WindowManager;
@@ -45,6 +49,10 @@ public class MainActivity extends Activity {
     private static final String START_URL = "https://" + HOST + "/index.html";
     private static final int REQ_FILES = 1001;
     private static final int REQ_STORAGE = 1002;
+    private static final int REQ_MIC = 1003;
+    private TextToSpeech tts;
+    private boolean ttsReady = false;
+    private PermissionRequest pendingPermission;
 
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
@@ -67,11 +75,24 @@ public class MainActivity extends Activity {
         s.setUseWideViewPort(true);
         s.setSupportZoom(false);
         s.setTextZoom(100);
-        s.setUserAgentString(s.getUserAgentString() + " VesnaAndroid/1.0");
+        s.setUserAgentString(s.getUserAgentString() + " VesnaAndroid/2.0");
 
         web.addJavascriptInterface(new Bridge(), "VesnaAndroid");
         web.setWebViewClient(new AssetClient());
         web.setWebChromeClient(new Chrome());
+
+        // голос Киви — системный синтезатор речи
+        tts = new TextToSpeech(this, status -> {
+            if (status == TextToSpeech.SUCCESS) {
+                int r = tts.setLanguage(new Locale("ru", "RU"));
+                ttsReady = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED;
+                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                    @Override public void onStart(String id) {}
+                    @Override public void onDone(String id) { runOnUiThread(() -> web.evaluateJavascript("window.VesnaSpeakDone && VesnaSpeakDone()", null)); }
+                    @Override public void onError(String id) { onDone(id); }
+                });
+            }
+        });
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl(START_URL);
@@ -104,7 +125,19 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQ_MIC && pendingPermission != null) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED) {
+                pendingPermission.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+            } else pendingPermission.deny();
+            pendingPermission = null;
+        }
+    }
+
+    @Override
     protected void onDestroy() {
+        if (tts != null) tts.shutdown();
         if (web != null) web.destroy();
         super.onDestroy();
     }
@@ -151,6 +184,8 @@ public class MainActivity extends Activity {
             case "json":
             case "webmanifest": return "application/json";
             case "png": return "image/png";
+            case "woff2": return "font/woff2";
+            case "mp3": return "audio/mpeg";
             default:
                 String m = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext.toLowerCase());
                 return m != null ? m : "application/octet-stream";
@@ -159,6 +194,22 @@ public class MainActivity extends Activity {
 
     /* ---------- Выбор файлов (импорт медиа) ---------- */
     private class Chrome extends WebChromeClient {
+        // доступ к микрофону для озвучки
+        @Override
+        public void onPermissionRequest(final PermissionRequest request) {
+            runOnUiThread(() -> {
+                boolean wantsMic = false;
+                for (String r : request.getResources()) if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) wantsMic = true;
+                if (!wantsMic) { request.deny(); return; }
+                if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                    request.grant(new String[]{PermissionRequest.RESOURCE_AUDIO_CAPTURE});
+                } else {
+                    pendingPermission = request;
+                    requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC);
+                }
+            });
+        }
+
         @Override
         public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
             if (fileCallback != null) fileCallback.onReceiveValue(null);
@@ -215,12 +266,17 @@ public class MainActivity extends Activity {
                     v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MOVIES + "/Vesna");
                     v.put(MediaStore.MediaColumns.IS_PENDING, 1);
                     ContentResolver cr = getContentResolver();
-                    pendingUri = cr.insert(MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), v);
+                    boolean video = mime != null && mime.startsWith("video/");
+                    if (!video) v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Vesna");
+                    pendingUri = cr.insert(video
+                            ? MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            : MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), v);
                     if (pendingUri == null) return false;
                     out = cr.openOutputStream(pendingUri);
-                    displayPath = "Movies/Vesna/" + safe;
+                    displayPath = (video ? "Movies/Vesna/" : "Download/Vesna/") + safe;
                 } else {
-                    File dir = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Vesna");
+                    boolean video = mime != null && mime.startsWith("video/");
+                    File dir = new File(Environment.getExternalStoragePublicDirectory(video ? Environment.DIRECTORY_MOVIES : Environment.DIRECTORY_DOWNLOADS), "Vesna");
                     if (!dir.exists() && !dir.mkdirs()) {
                         dir = getExternalFilesDir(Environment.DIRECTORY_MOVIES);
                     }
@@ -276,6 +332,22 @@ public class MainActivity extends Activity {
                 else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             });
         }
+
+        @JavascriptInterface
+        public void speak(final String text, final float pitch, final float rate) {
+            if (tts == null || !ttsReady) { runOnUiThread(() -> web.evaluateJavascript("window.VesnaSpeakDone && VesnaSpeakDone()", null)); return; }
+            tts.setPitch(pitch);
+            tts.setSpeechRate(rate);
+            tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "kiwi");
+        }
+
+        @JavascriptInterface
+        public void stopSpeak() {
+            if (tts != null) tts.stop();
+        }
+
+        @JavascriptInterface
+        public boolean canSpeak() { return ttsReady; }
 
         @JavascriptInterface
         public void toast(final String msg) {
