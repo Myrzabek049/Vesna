@@ -1,8 +1,8 @@
 /* Vesna — офлайн-кэш приложения */
-const CACHE = 'vesna-v5';
+const CACHE = 'vesna-v6';
 const FILES = [
   './', 'index.html', 'css/style.css', 'css/fonts.css', 'manifest.webmanifest', 'icons/icon.svg', 'version.json',
-  'js/util.js', 'js/version.js', 'js/vendor/mp4-muxer.js', 'js/mascot.js', 'js/storage.js', 'js/presets.js', 'js/project.js',
+  'js/util.js', 'js/icons.js', 'js/version.js', 'js/vendor/mp4-muxer.js', 'js/mascot.js', 'js/storage.js', 'js/presets.js', 'js/project.js',
   'js/media.js', 'js/engine.js', 'js/timeline.js', 'js/inspector.js', 'js/exporter.js', 'js/library.js', 'js/kiwi.js',
   'js/voice.js', 'js/backup.js', 'js/hub.js', 'js/mobile.js', 'js/help.js', 'js/app.js',
 ];

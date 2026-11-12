@@ -43,7 +43,7 @@
   <div id="app">
     <!-- Верхняя панель -->
     <header class="topbar">
-      <button class="btn ghost home-btn" id="btnHome" title="Мои проекты" aria-label="Мои проекты">←</button>
+      <button class="btn ghost home-btn" id="btnHome" title="Мои проекты" aria-label="Мои проекты" data-icon="back"></button>
       <div class="brand">
         <img src="icons/icon.svg" alt="" width="26" height="26">
         <span>Vesna</span>
@@ -52,8 +52,8 @@
         <input id="projectName" class="project-name" value="Мой проект" aria-label="Название проекта">
       </div>
       <div class="topbar-actions">
-        <button class="btn ghost" id="btnUndo" title="Отменить (Ctrl+Z)">↶</button>
-        <button class="btn ghost" id="btnRedo" title="Повторить (Ctrl+Shift+Z)">↷</button>
+        <button class="btn ghost icon-btn" id="btnUndo" title="Отменить (Ctrl+Z)" aria-label="Отменить" data-icon="undo"></button>
+        <button class="btn ghost icon-btn" id="btnRedo" title="Повторить (Ctrl+Shift+Z)" aria-label="Повторить" data-icon="redo"></button>
         <select id="aspectSelect" class="select" title="Формат кадра">
           <option value="16:9">16:9</option>
           <option value="9:16">9:16</option>
@@ -72,12 +72,12 @@
       <aside class="panel left-panel" aria-label="Материалы">
         <div class="sheet-head"><b class="sheet-title">Материалы</b><button class="btn ghost sheet-close" aria-label="Закрыть">✕</button></div>
         <nav class="tabs" id="leftTabs">
-          <button class="tab active" data-tab="media"><i>🎞</i>Медиа</button>
-          <button class="tab" data-tab="audio"><i>🎵</i>Аудио</button>
-          <button class="tab" data-tab="text"><i>T</i>Текст</button>
-          <button class="tab" data-tab="stickers"><i>😊</i>Стикеры</button>
-          <button class="tab" data-tab="filters"><i>🎨</i>Фильтры</button>
-          <button class="tab" data-tab="effects"><i>✨</i>Эффекты</button>
+          <button class="tab active" data-tab="media"><i data-icon="media" data-icon-size="17"></i>Медиа</button>
+          <button class="tab" data-tab="audio"><i data-icon="audio" data-icon-size="17"></i>Аудио</button>
+          <button class="tab" data-tab="text"><i data-icon="text" data-icon-size="17"></i>Текст</button>
+          <button class="tab" data-tab="stickers"><i data-icon="sticker" data-icon-size="17"></i>Стикеры</button>
+          <button class="tab" data-tab="filters"><i data-icon="filter" data-icon-size="17"></i>Фильтры</button>
+          <button class="tab" data-tab="effects"><i data-icon="effects" data-icon-size="17"></i>Эффекты</button>
         </nav>
 
         <section class="tab-body active" data-body="media">
@@ -95,7 +95,7 @@
         </section>
 
         <section class="tab-body" data-body="audio">
-          <button class="btn primary rec-btn" id="btnVoice">🎙 Записать озвучку</button>
+          <button class="btn primary rec-btn" id="btnVoice" data-icon="mic">Записать озвучку</button>
           <p class="hint">Запись начнётся с места плейхеда, видео будет играть без звука.</p>
           <h4 class="sub">Музыка — бесплатно, без авторских прав</h4>
           <div class="lib-list" id="musicList"></div>
@@ -156,6 +156,10 @@
             <button class="btn icon" id="btnNextFrame" title="Кадр вперёд (→)">▶︎</button>
             <button class="btn icon" id="btnToEnd" title="В конец (End)">⏭</button>
           </div>
+          <div class="transport-extra">
+            <button class="btn ghost icon-btn" id="btnUndoM" title="Отменить" aria-label="Отменить" data-icon="undo"></button>
+            <button class="btn ghost icon-btn" id="btnRedoM" title="Повторить" aria-label="Повторить" data-icon="redo"></button>
+          </div>
           <span class="timecode muted" id="timeTotal">00:00.00</span>
         </div>
       </section>
@@ -175,10 +179,14 @@
     <!-- Таймлайн -->
     <section class="timeline-wrap">
       <div class="timeline-toolbar">
-        <button class="btn ghost sm" id="btnSplit" title="Разрезать по плейхеду (S)">✂ Разрезать</button>
-        <button class="btn ghost sm" id="btnDuplicate" title="Дублировать (Ctrl+D)">⧉ Дублировать</button>
-        <button class="btn ghost sm" id="btnDelete" title="Удалить (Del)">🗑 Удалить</button>
-        <button class="btn ghost sm" id="btnAddTrack" title="Добавить дорожку оверлея">+ Дорожка</button>
+        <button class="pill" id="btnSplit" title="Разрезать по плейхеду (S)">Разрезать</button>
+        <button class="pill" id="btnDuplicate" title="Копия клипа (Ctrl+D)">Копия</button>
+        <button class="pill" id="btnDelete" title="Удалить (Del)">Удалить</button>
+        <button class="pill accent" id="btnAddTrack" title="Добавить дорожку оверлея">+ Дорожка</button>
+        <select class="pill mobile-only" id="aspectSelectM" title="Формат кадра" aria-label="Формат кадра">
+          <option value="16:9">16:9</option><option value="9:16">9:16</option><option value="1:1">1:1</option>
+          <option value="4:5">4:5</option><option value="4:3">4:3</option><option value="21:9">21:9</option>
+        </select>
         <label class="toggle sm" title="Примагничивание к краям клипов">
           <input type="checkbox" id="snapToggle" checked> Магнит
         </label>
@@ -259,6 +267,7 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script src="js/util.js"></script>
+  <script src="js/icons.js"></script>
   <script src="js/version.js"></script>
   <script src="js/vendor/mp4-muxer.js"></script>
   <script src="js/mascot.js"></script>

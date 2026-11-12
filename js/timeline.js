@@ -27,7 +27,10 @@ V.timeline = (() => {
 
     for (const tr of tracks) {
       const h = HEIGHTS[tr.kind];
-      const head = V.el('div', { class: 'track-head ' + tr.kind, style: { height: h + 'px' } },
+      const toggleKey = tr.kind === 'audio' ? 'muted' : 'hidden';
+      const check = V.el('button', { class: 'th-check' + (tr[toggleKey] ? '' : ' on'), title: tr.kind === 'audio' ? (tr.muted ? 'Включить звук' : 'Выключить звук') : (tr.hidden ? 'Показать дорожку' : 'Скрыть дорожку'),
+        'aria-label': tr.kind === 'audio' ? 'Звук дорожки' : 'Видимость дорожки', onclick: () => P.mutate(() => { tr[toggleKey] = !tr[toggleKey]; }) });
+      const head = V.el('div', { class: 'track-head ' + tr.kind, style: { height: h + 'px' } }, check,
         V.el('span', { class: 'th-icon' }, ICONS[tr.kind]),
         V.el('span', { class: 'th-label' }, LABELS[tr.kind]),
       );

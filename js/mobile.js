@@ -11,23 +11,23 @@ V.mobile = (() => {
 
   /* Инструменты: [иконка, подпись, действие] */
   const MATERIALS = [
-    ['🎞', 'Медиа', () => openLeft('media')],
-    ['🎵', 'Аудио', () => openLeft('audio')],
-    ['T', 'Текст', () => openLeft('text')],
-    ['😊', 'Стикеры', () => openLeft('stickers')],
-    ['🎙', 'Озвучка', () => V.voice.start()],
-    ['✨', 'Эффекты', () => openLeft('effects')],
+    ['media', 'Медиа', () => openLeft('media')],
+    ['audio', 'Аудио', () => openLeft('audio')],
+    ['text', 'Текст', () => openLeft('text')],
+    ['sticker', 'Стикеры', () => openLeft('stickers')],
+    ['mic', 'Озвучка', () => V.voice.start()],
+    ['effects', 'Эффекты', () => openLeft('effects')],
+    ['filter', 'Фильтры', () => openLeft('filters')],
   ];
   const toolsFor = (c) => {
-    const t = [
-      ['✂', 'Разрезать', () => P().splitAtPlayhead()],
-    ];
-    if (c.type === 'text') t.push(['✎', 'Текст', () => openInsp('Текст')]);
-    if (c.type !== 'audio') t.push(['⤢', 'Размер', () => openInsp('Положение')]);
-    if (c.type === 'video' || c.type === 'audio') t.push(['⏩', 'Скорость', () => openInsp('Скорость')], ['🔊', 'Звук', () => openInsp('Звук')]);
-    if (c.type === 'video' || c.type === 'image') t.push(['🎨', 'Цвет', () => openInsp('Цвет')], ['⬚', 'Кадр', () => openInsp('Кадрирование')], ['🟩', 'Хромакей', () => openInsp('Хромакей')]);
-    if (c.type !== 'audio') t.push(['◆', 'Ключ. кадры', () => openInsp('Ключевые')], ['✨', 'Анимация', () => openInsp('Анимация')]);
-    t.push(['⧉', 'Копия', () => P().duplicate(c.id)], ['🗑', 'Удалить', () => P().remove(c.id)], ['⚙', 'Все настройки', () => openInsp(null)]);
+    const t = [];
+    if (c.type === 'text') t.push(['edit', 'Текст', () => openInsp('Текст')]);
+    if (c.type === 'video' || c.type === 'audio') t.push(['sound', 'Звук', () => openInsp('Звук')]);
+    if (c.type === 'video' || c.type === 'image') t.push(['color', 'Цвет', () => openInsp('Цвет')], ['crop', 'Кадр', () => openInsp('Кадрирование')], ['chroma', 'Хромакей', () => openInsp('Хромакей')]);
+    if (c.type !== 'audio') t.push(['keyframe', 'Ключ. кадры', () => openInsp('Ключевые')]);
+    if (c.type === 'video' || c.type === 'audio') t.push(['speed', 'Скорость', () => openInsp('Скорость')]);
+    if (c.type !== 'audio') t.push(['size', 'Размер', () => openInsp('Положение')], ['anim', 'Анимация', () => openInsp('Анимация')]);
+    t.push(['settings', 'Всё', () => openInsp(null)]);
     return t;
   };
 
@@ -36,9 +36,9 @@ V.mobile = (() => {
     if (!bar) return;
     const c = P().selected();
     bar.innerHTML = '';
-    if (c) bar.append(V.el('button', { class: 'mb-btn back', title: 'Снять выделение', onclick: () => P().select(null) }, V.el('i', {}, '‹'), V.el('span', {}, 'Назад')));
+    if (c) bar.append(V.el('button', { class: 'mb-btn back', title: 'Снять выделение', 'aria-label': 'Снять выделение', onclick: () => P().select(null) }, V.icons.icon('back', 24), V.el('span', {}, 'Назад')));
     for (const [icon, label, fn] of (c ? toolsFor(c) : MATERIALS)) {
-      bar.append(V.el('button', { class: 'mb-btn', 'data-tool': label, onclick: fn }, V.el('i', {}, icon), V.el('span', {}, label)));
+      bar.append(V.el('button', { class: 'mb-btn', 'data-tool': label, onclick: fn }, V.icons.icon(icon, 24), V.el('span', {}, label)));
     }
     bar.classList.toggle('clip-mode', !!c);
   };
@@ -68,7 +68,9 @@ V.mobile = (() => {
     show(document.querySelector('.left-panel'));
   };
   const openInsp = (section) => {
-    show(document.querySelector('.right-panel'));   // сначала закрываем прошлую панель (она сбрасывает раздел)
+    const panel = document.querySelector('.right-panel');
+    show(panel);   // сначала закрываем прошлую панель (она сбрасывает раздел)
+    panel.classList.toggle('focused', !!section);
     V.inspector.focus = section;
     V.inspector.render();
     $('inspTitle').textContent = section ? section.replace('Положение', 'Положение и размер').replace('Ключевые', 'Ключевые кадры').replace('Цвет', 'Цвет и фильтры') : 'Все настройки';

@@ -108,6 +108,10 @@
 
   /* ---------- Верхняя панель ---------- */
   $('projectName').addEventListener('change', (e) => P.mutate(s => { s.name = e.target.value.trim() || 'Мой проект'; }));
+  V.icons.hydrate();
+  $('aspectSelectM').addEventListener('change', (e) => { $('aspectSelect').value = e.target.value; $('aspectSelect').dispatchEvent(new Event('change')); });
+  $('btnUndoM').addEventListener('click', P.undo);
+  $('btnRedoM').addEventListener('click', P.redo);
   $('aspectSelect').addEventListener('change', (e) => {
     P.mutate(s => { s.aspect = e.target.value; });
     E.setResolution(E.previewBase);
@@ -117,6 +121,7 @@
   $('btnExport').addEventListener('click', V.exporter.open);
   V.bus.on('project', () => {
     $('aspectSelect').value = P.state.aspect;
+    $('aspectSelectM').value = P.state.aspect;
     $('projectName').value = P.state.name;
     if (E.canvas) { const { w, h } = P.size(E.previewBase); if (!E.exporting && (E.canvas.width !== w || E.canvas.height !== h)) E.setResolution(E.previewBase); }
   });
@@ -128,7 +133,9 @@
   $('btnToEnd').addEventListener('click', () => E.seek(E.duration()));
   $('btnPrevFrame').addEventListener('click', () => E.seek(E.time - frame));
   $('btnNextFrame').addEventListener('click', () => E.seek(E.time + frame));
-  V.bus.on('play', (on) => { $('btnPlay').textContent = on ? '❚❚' : '▶'; $('btnPlay').classList.toggle('on', on); });
+  const setPlayIcon = (on) => { const b = $('btnPlay'); b.textContent = ''; b.append(V.icons.icon(on ? 'pause' : 'play', 22)); b.classList.toggle('on', on); };
+  setPlayIcon(false);
+  V.bus.on('play', setPlayIcon);
 
   /* ---------- Панель таймлайна ---------- */
   $('btnSplit').addEventListener('click', P.splitAtPlayhead);

@@ -52,7 +52,9 @@ V.inspector = (() => {
       const def = inp.dataset.def;
       if (def != null) { inp.value = def; inp.dispatchEvent(new Event('input')); end(); }
     });
-    const row = V.el('label', { class: 'ctl range' }, V.el('span', { class: 'cl' }, label), inp, out);
+    const row = V.el('label', { class: 'ctl range' }, V.el('span', { class: 'cl' }, label), out, inp);
+    const paint = () => { const p = (inp.value - inp.min) / (inp.max - inp.min) * 100; inp.style.setProperty('--p', p + '%'); };
+    inp.addEventListener('input', paint); paint();
     row.setDefault = (d) => { inp.dataset.def = d; return row; };
     return row;
   };
