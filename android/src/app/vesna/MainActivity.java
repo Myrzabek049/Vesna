@@ -334,11 +334,46 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
-        public void speak(final String text, final float pitch, final float rate) {
+        public void speak(final String text, final float pitch, final float rate, final String voiceName) {
             if (tts == null || !ttsReady) { runOnUiThread(() -> web.evaluateJavascript("window.VesnaSpeakDone && VesnaSpeakDone()", null)); return; }
-            tts.setPitch(pitch);
-            tts.setSpeechRate(rate);
+            try {
+                android.speech.tts.Voice chosen = null;
+                if (voiceName != null && !voiceName.isEmpty() && tts.getVoices() != null) {
+                    for (android.speech.tts.Voice v : tts.getVoices()) if (v.getName().equals(voiceName)) { chosen = v; break; }
+                }
+                if (chosen != null) tts.setVoice(chosen);
+                else tts.setLanguage(new Locale("ru", "RU"));
+            } catch (Exception ignored) {}
+            tts.setPitch(Math.max(0.3f, Math.min(2.5f, pitch)));
+            tts.setSpeechRate(Math.max(0.3f, Math.min(3f, rate)));
             tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "kiwi");
+        }
+
+        /* Русские голоса, установленные на устройстве: [{id, name}] */
+        @JavascriptInterface
+        public String voicesJson() {
+            org.json.JSONArray arr = new org.json.JSONArray();
+            if (tts == null || !ttsReady) return arr.toString();
+            try {
+                java.util.List<android.speech.tts.Voice> list = new java.util.ArrayList<>();
+                for (android.speech.tts.Voice v : tts.getVoices()) {
+                    if (v.getLocale() != null && "ru".equals(v.getLocale().getLanguage())
+                            && (v.getFeatures() == null || !v.getFeatures().contains("notInstalled"))) list.add(v);
+                }
+                java.util.Collections.sort(list, (a, b) -> {
+                    if (a.isNetworkConnectionRequired() != b.isNetworkConnectionRequired()) return a.isNetworkConnectionRequired() ? 1 : -1;
+                    return a.getName().compareTo(b.getName());
+                });
+                int n = 1;
+                for (android.speech.tts.Voice v : list) {
+                    org.json.JSONObject o = new org.json.JSONObject();
+                    o.put("id", v.getName());
+                    o.put("name", "Голос " + (n++) + (v.isNetworkConnectionRequired() ? " · интернет" : " · без интернета")
+                            + (v.getQuality() >= android.speech.tts.Voice.QUALITY_HIGH ? " · HD" : ""));
+                    arr.put(o);
+                }
+            } catch (Exception ignored) {}
+            return arr.toString();
         }
 
         @JavascriptInterface

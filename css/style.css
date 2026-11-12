@@ -563,3 +563,12 @@ input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 
   .right-panel.focused .insp-head { display: none; }
   .tabs .tab { display: inline-flex; align-items: center; }
 }
+
+.hub-top .hub-voice { margin-left: auto; color: var(--muted); }
+.hub-top .hub-voice + .help-btn { margin-left: 4px; }
+.kiwi-dialog .dialog-body { padding-bottom: 14px; }
+.kiwi-dialog .ctl .select { flex: 1; min-width: 0; }
+.kiwi-dialog .dialog-actions { flex-wrap: wrap; }
+.kiwi-dialog .btn[data-icon] { display: inline-flex; align-items: center; gap: 6px; }
+.hint.warn { color: #ffd84d; }
+.hb-voicecfg { font-size: 15px; padding: 2px 8px; color: #26302d; }

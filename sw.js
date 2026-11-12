@@ -1,5 +1,5 @@
 /* Vesna — офлайн-кэш приложения */
-const CACHE = 'vesna-v6';
+const CACHE = 'vesna-v7';
 const FILES = [
   './', 'index.html', 'css/style.css', 'css/fonts.css', 'manifest.webmanifest', 'icons/icon.svg', 'version.json',
   'js/util.js', 'js/icons.js', 'js/version.js', 'js/vendor/mp4-muxer.js', 'js/mascot.js', 'js/storage.js', 'js/presets.js', 'js/project.js',

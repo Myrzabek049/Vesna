@@ -7,18 +7,41 @@ V.kiwi = (() => {
   K.voiceOn = () => LS('vesna.kiwiVoice') !== 'off';
   K.setVoice = (on) => { LS('vesna.kiwiVoice', on ? 'on' : 'off'); if (!on) K.stop(); V.bus.emit('kiwiVoice', on); };
 
-  /* --- Голос --- */
+  /* --- Настройки голоса --- */
+  K.PRESETS = [
+    { id: 'zvonkiy', name: 'Звонкий', pitch: 1.45, rate: 1.05 },
+    { id: 'obychny', name: 'Обычный', pitch: 1.0, rate: 1.0 },
+    { id: 'spokoyny', name: 'Спокойный', pitch: 0.9, rate: 0.85 },
+    { id: 'tarator', name: 'Тараторка', pitch: 1.25, rate: 1.45 },
+    { id: 'basok', name: 'Басок', pitch: 0.6, rate: 0.95 },
+  ];
+  const DEFAULT_CFG = { voice: '', pitch: 1.45, rate: 1.05, preset: 'zvonkiy' };
+  K.cfg = () => { try { return { ...DEFAULT_CFG, ...JSON.parse(LS('vesna.kiwiVoiceCfg') || '{}') }; } catch (e) { return { ...DEFAULT_CFG }; } };
+  K.setCfg = (patch) => { const c = { ...K.cfg(), ...patch }; LS('vesna.kiwiVoiceCfg', JSON.stringify(c)); return c; };
+
+  /* --- Список голосов устройства (только русские) --- */
+  const android = () => window.VesnaAndroid && VesnaAndroid.speak && (!VesnaAndroid.canSpeak || VesnaAndroid.canSpeak());
+  K.voices = () => {
+    if (window.VesnaAndroid && VesnaAndroid.voicesJson) {
+      try { return JSON.parse(VesnaAndroid.voicesJson()); } catch (e) { return []; }
+    }
+    if (!('speechSynthesis' in window)) return [];
+    return speechSynthesis.getVoices().filter(v => /^ru/i.test(v.lang))
+      .map(v => ({ id: v.voiceURI || v.name, name: v.name.replace(/^Microsoft |^Google /, '') + (v.localService ? '' : ' · интернет') }));
+  };
+
   let voice = null;
   const pickVoice = () => {
     if (!('speechSynthesis' in window)) return null;
     const vs = speechSynthesis.getVoices();
-    // предпочитаем женский русский голос — у Киви высокий голосок
+    const want = K.cfg().voice;
+    if (want) { const v = vs.find(v => (v.voiceURI || v.name) === want); if (v) return v; }
     return vs.find(v => /^ru/i.test(v.lang) && /(female|жен|irina|alyona|milena|svetlana|daria|google)/i.test(v.name))
       || vs.find(v => /^ru/i.test(v.lang)) || null;
   };
   if ('speechSynthesis' in window) {
     voice = pickVoice();
-    speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); };
+    speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); V.bus.emit('kiwiVoices'); };
   }
 
   // Запасной «голос»: мелодичное чириканье, если синтеза речи нет
@@ -46,7 +69,7 @@ V.kiwi = (() => {
   const talking = (on) => {
     K.speaking = on;
     clearInterval(talkTimer);
-    const svgs = () => [...document.querySelectorAll('.help-bubble .vm, .kiwi-talk .vm')];
+    const svgs = () => [...document.querySelectorAll('.help-bubble .vm, .kiwi-talk .vm')].filter(e => e.isConnected);
     if (!on) { svgs().forEach(s => V.mascot.set(s, 'wink')); return; }
     let open = false;
     talkTimer = setInterval(() => { open = !open; svgs().forEach(s => V.mascot.set(s, open ? 'talk' : 'happy')); }, 140);
@@ -64,18 +87,20 @@ V.kiwi = (() => {
     K.stop();
     const clean = text.replace(/[«»()]/g, '').replace(/\s+—\s+/g, ', ');
     // Android: системный синтезатор речи через мост
-    if (window.VesnaAndroid && VesnaAndroid.speak && (!VesnaAndroid.canSpeak || VesnaAndroid.canSpeak())) {
+    const cfg = K.cfg();
+    if (android()) {
       talking(true);
-      VesnaAndroid.speak(clean, 1.35, 1.05);
-      setTimeout(() => talking(false), Math.min(12000, 400 + clean.length * 65));
+      VesnaAndroid.speak(clean, cfg.pitch, cfg.rate, cfg.voice || '');
+      setTimeout(() => talking(false), Math.min(15000, 400 + clean.length * 65 / cfg.rate));
       return;
     }
     if ('speechSynthesis' in window && (voice || pickVoice())) {
       const u = new SpeechSynthesisUtterance(clean);
-      u.voice = voice || pickVoice();
+      voice = pickVoice();
+      u.voice = voice;
       u.lang = 'ru-RU';
-      u.pitch = 1.45;   // высокий, «мультяшный» голос
-      u.rate = 1.05;
+      u.pitch = cfg.pitch;
+      u.rate = cfg.rate;
       u.onstart = () => talking(true);
       u.onend = u.onerror = () => talking(false);
       speechSynthesis.speak(u);
@@ -85,6 +110,65 @@ V.kiwi = (() => {
     setTimeout(() => talking(false), chirp(clean));
   };
   window.VesnaSpeakDone = () => talking(false);
+
+  /* --- Окно «Голос Киви» --- */
+  let dlg = null;
+  const SAMPLE = 'Привет! Я Киви. Если что-то непонятно, нажми на вопросик, и я всё объясню.';
+  K.openSettings = () => {
+    if (!dlg) {
+      dlg = V.el('dialog', { class: 'dialog kiwi-dialog', 'aria-label': 'Голос Киви' });
+      document.body.append(dlg);
+      dlg.addEventListener('close', () => K.stop());
+      V.bus.on('kiwiVoices', () => { if (dlg.open) build(); });
+    }
+    build();
+    dlg.showModal();
+  };
+  const build = () => {
+    const c = K.cfg();
+    const list = K.voices();
+    const sel = V.el('select', { class: 'select', id: 'kiwiVoiceSel' },
+      V.el('option', { value: '' }, 'Автоматически'),
+      list.map(v => V.el('option', { value: v.id, selected: v.id === c.voice }, v.name)));
+    sel.addEventListener('change', () => { K.setCfg({ voice: sel.value }); voice = pickVoice(); K.say(SAMPLE, { force: true }); });
+
+    const slider = (label, key, min, max) => {
+      const out = V.el('span', { class: 'rv' }, (+c[key]).toFixed(2) + '×');
+      const inp = V.el('input', { type: 'range', min, max, step: 0.05, value: c[key] });
+      const paint = () => inp.style.setProperty('--p', ((inp.value - min) / (max - min) * 100) + '%');
+      inp.addEventListener('input', () => { out.textContent = (+inp.value).toFixed(2) + '×'; paint(); K.setCfg({ [key]: +inp.value, preset: '' }); markPreset(''); });
+      inp.addEventListener('change', () => K.say(SAMPLE, { force: true }));
+      paint();
+      return V.el('label', { class: 'ctl range' }, V.el('span', { class: 'cl' }, label), out, inp);
+    };
+    const chips = V.el('div', { class: 'chip-row' }, K.PRESETS.map(p => V.el('button', {
+      type: 'button', class: 'chip' + (c.preset === p.id ? ' active' : ''), 'data-preset': p.id,
+      onclick: () => { K.setCfg({ preset: p.id, pitch: p.pitch, rate: p.rate }); build(); K.say(SAMPLE, { force: true }); },
+    }, p.name)));
+    const markPreset = (id) => chips.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b.dataset.preset === id));
+
+    const onToggle = V.el('button', { type: 'button', class: 'chip' + (K.voiceOn() ? ' active' : ''), onclick: () => { K.setVoice(!K.voiceOn()); build(); } }, K.voiceOn() ? '✓ Голос включён' : 'Голос выключен');
+    const noVoices = !list.length;
+    dlg.innerHTML = '';
+    dlg.append(V.el('div', { class: 'dialog-body' },
+      V.el('div', { class: 'export-head kiwi-talk' }, V.mascot.create('wink', 64, { float: false, title: 'Киви' }), V.el('h3', {}, 'Голос Киви')),
+      V.el('p', { class: 'hint' }, 'Киви озвучивает подсказки голосом твоего устройства. Выбери, как он будет звучать.'),
+      V.el('div', { class: 'chip-row' }, onToggle),
+      V.el('h4', { class: 'sub' }, 'Голос'),
+      noVoices
+        ? V.el('p', { class: 'hint warn' }, 'На устройстве не найден русский голос. Установи его: Настройки → Специальные возможности (или Язык и ввод) → Синтез речи → русский язык. Пока голоса нет, Киви «чирикает».')
+        : V.el('label', { class: 'ctl' }, V.el('span', { class: 'cl' }, 'Голос'), sel),
+      V.el('h4', { class: 'sub' }, 'Характер'),
+      chips,
+      slider('Высота', 'pitch', 0.5, 2),
+      slider('Скорость', 'rate', 0.5, 2),
+      V.el('div', { class: 'dialog-actions' },
+        V.el('button', { type: 'button', class: 'btn ghost', onclick: () => { LS('vesna.kiwiVoiceCfg', JSON.stringify(DEFAULT_CFG)); voice = pickVoice(); build(); } }, 'Сбросить'),
+        V.el('button', { type: 'button', class: 'btn ghost', 'data-icon': 'play', onclick: () => K.say(SAMPLE, { force: true }) }, 'Послушать'),
+        V.el('button', { type: 'button', class: 'btn primary', onclick: () => dlg.close() }, 'Готово')),
+    ));
+    V.icons.hydrate(dlg);
+  };
 
   /* --- Приветственный тур в редакторе (один раз) --- */
   const TOUR = [

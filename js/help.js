@@ -16,6 +16,8 @@ V.help = (() => {
 
     ['#hubImport', 'Открыть из файла', 'Восстанавливает проект из файла .vesna, например из копии с другого телефона или компьютера.'],
     [(el) => !!el.closest('.hub-open-file'), 'Открыть из файла', 'Восстанавливает проект из файла .vesna, например из копии с другого телефона или компьютера.'],
+    ['#hubVoice', 'Голос Киви', 'Здесь можно выбрать голос, характер, высоту и скорость, с которыми Киви читает подсказки, или выключить голос.'],
+    ['.hb-voicecfg', 'Настроить голос', 'Открывает настройки голоса Киви: голос, высота и скорость.'],
     ['#hubCheckUpd', 'Проверить обновления', 'Киви посмотрит, не вышла ли новая версия Vesna. Нужен интернет.'],
 
     // --- Нижняя панель (телефон) ---
@@ -166,6 +168,7 @@ V.help = (() => {
         V.el('p', { class: 'hb-text' }),
         V.el('div', { class: 'hb-actions' },
           V.el('button', { class: 'btn sm ghost hb-voice', title: 'Голос Киви', onclick: () => { V.kiwi.setVoice(!V.kiwi.voiceOn()); syncVoiceBtn(); if (V.kiwi.voiceOn()) V.kiwi.say(bubble.querySelector('.hb-text').textContent); } }, '🔊'),
+          V.el('button', { class: 'btn sm ghost hb-voicecfg', title: 'Настроить голос Киви', 'aria-label': 'Настроить голос Киви', onclick: () => { hideBubble(); H.toggle(false); V.kiwi.openSettings(); } }, '⚙'),
           V.el('button', { class: 'btn sm ghost hb-skip', hidden: true }, 'Пропустить'),
           V.el('button', { class: 'btn sm primary hb-ok', onclick: () => okHandler() }, 'Понятно'))));
     bar.hidden = true; bubble.hidden = true;

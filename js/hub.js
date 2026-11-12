@@ -249,6 +249,7 @@ V.hub = (() => {
     $('btnHome').addEventListener('click', () => H.show());
     $('hubImport').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) V.backup.importFile(f); });
     $('hubCheckUpd').addEventListener('click', () => V.kiwi.checkUpdate(true));
+    $('hubVoice').addEventListener('click', () => V.kiwi.openSettings());
     $('hubVersion').textContent = 'Vesna ' + V.VERSION;
     render();
   };
